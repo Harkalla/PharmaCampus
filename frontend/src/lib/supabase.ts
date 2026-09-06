@@ -49,24 +49,6 @@ export async function signUpWithSupabase(payload: {
   if (error) throw new Error(error.message);
 
   const user = data.user;
-  if (user) {
-    const { error: profileError } = await supabase.from('profiles').upsert({
-      id: user.id,
-      first_name: payload.firstName,
-      last_name: payload.lastName,
-      email: payload.email,
-      country: payload.country || '',
-      city: payload.city || '',
-      university: payload.university || '',
-      level: payload.level || '',
-      semester: payload.semester || '',
-      bio: payload.bio || '',
-      photo_url: payload.photoUrl || '',
-      role: 'user'
-    });
-
-    if (profileError) throw new Error(profileError.message);
-  }
 
   return {
     user: user ? {
