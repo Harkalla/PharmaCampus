@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import Layout from '../components/Layout';
 import { apiFetch } from '../lib/api';
 import { User } from '../types';
+import { UserRound } from 'lucide-react';
 
 type ProfilePageProps = { user: User; onLogout: () => void; };
 
@@ -25,7 +26,7 @@ const ProfilePage = ({ user, onLogout }: ProfilePageProps) => {
     <Layout user={user} title="Mon profil" onLogout={onLogout}>
       <div className="card p-6 sm:p-8">
         <div className="flex flex-col gap-6 md:flex-row md:items-center">
-          <img src={user.photo_url || 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80'} alt={`Profil de ${user.first_name}`} className="h-28 w-28 rounded-full object-cover ring-4 ring-brand-300/20" />
+          {user.photo_url ? <img src={user.photo_url} alt={`Profil de ${user.first_name}`} className="h-28 w-28 rounded-full object-cover ring-4 ring-brand-300/20" /> : <div className="flex h-28 w-28 items-center justify-center rounded-full border border-brand-300/30 bg-brand-300/10 text-brand-300" aria-label="Profil sans photo"><UserRound size={38} /></div>}
           <div>
             <p className="section-label">Profil étudiant</p>
             <h2 className="mt-2 text-3xl font-black text-emerald-50">{user.first_name} {user.last_name}</h2>

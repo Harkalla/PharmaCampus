@@ -8,8 +8,8 @@ type LoginPageProps = {
 };
 
 const LoginPage = ({ onLogin }: LoginPageProps) => {
-  const [email, setEmail] = useState('student@pharmacampus.com');
-  const [password, setPassword] = useState('student123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [resetSent, setResetSent] = useState('');

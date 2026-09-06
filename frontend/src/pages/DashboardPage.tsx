@@ -4,6 +4,7 @@ import { apiFetch, formatDate } from '../lib/api';
 import { supabase } from '../lib/supabase';
 import { useEffect, useState } from 'react';
 import { User } from '../types';
+import { UserRound } from 'lucide-react';
 
 type DashboardProps = { user: User; onLogout: () => void; };
 
@@ -62,7 +63,7 @@ const DashboardPage = ({ user, onLogout }: DashboardProps) => {
             <div className="absolute -right-24 -top-24 h-64 w-64 rounded-full border border-brand-300/20 bg-brand-300/10" />
             <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-4">
-              <img src={user.photo_url || 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80'} alt={`Profil de ${user.first_name}`} className="h-20 w-20 rounded-full object-cover ring-4 ring-brand-300/20" />
+              {user.photo_url ? <img src={user.photo_url} alt={`Profil de ${user.first_name}`} className="h-20 w-20 rounded-full object-cover ring-4 ring-brand-300/20" /> : <div className="flex h-20 w-20 items-center justify-center rounded-full border border-brand-300/30 bg-brand-300/10 text-brand-300" aria-label="Profil sans photo"><UserRound size={30} /></div>}
               <div>
                 <p className="section-label">Bonjour, {user.first_name}</p>
                 <h2 className="mt-2 text-3xl font-black text-emerald-50">Prêt à progresser ?</h2>
