@@ -72,6 +72,9 @@ app.post('/api/auth/register', async (req, res) => {
   if (!firstName || !lastName || !email || !password) {
     return res.status(400).json({ error: 'Informations de base manquantes.' });
   }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ error: 'Adresse email invalide.' });
+  }
   if (!/^[A-Za-z0-9]{6,8}$/.test(password) || !/[A-Za-z]/.test(password) || !/[0-9]/.test(password)) {
     return res.status(400).json({ error: 'Le mot de passe doit contenir 6 à 8 caractères, uniquement des lettres et chiffres, avec au moins une lettre et un chiffre.' });
   }

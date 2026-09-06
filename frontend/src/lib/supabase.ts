@@ -112,6 +112,13 @@ export async function signInWithSupabase(email: string, password: string): Promi
   };
 }
 
+export async function requestPasswordReset(email: string) {
+  if (!supabase) throw new Error('La récupération par email nécessite la configuration de Supabase Auth.');
+  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/settings` });
+  if (error) throw new Error(error.message);
+  return 'Un lien de réinitialisation a été envoyé à cette adresse email.';
+}
+
 export async function getSupabaseSessionUser() {
   if (!supabase) {
     const token = localStorage.getItem('pharmacampus_token');

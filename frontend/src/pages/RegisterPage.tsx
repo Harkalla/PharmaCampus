@@ -11,22 +11,13 @@ const RegisterPage = ({ onLogin }: RegisterPageProps) => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [form, setForm] = useState({
-    firstName: 'Amina',
-    lastName: 'Khalid',
-    email: 'amina@test.com',
-    password: 'test1234',
-    passwordConfirmation: 'test1234',
-    country: 'Maroc',
-    city: 'Casablanca',
-    university: 'Université Hassan II',
-    level: 'Licence',
-    semester: 'S5',
-    bio: 'Étudiante en pharmacie, passionnée par la pharmacologie.',
+    firstName: '', lastName: '', email: '', password: '', passwordConfirmation: '',
+    country: '', city: '', university: '', level: '', semester: '', bio: '',
     photoUrl: ''
   });
   const [error, setError] = useState('');
 
-  const handleChange = (field: string, value: string) => setForm((current) => ({ ...current, [field]: value }));
+  const handleChange = (field: string, value: string) => setForm((current) => ({ ...current, [field]: value, ...(field === 'country' ? { city: '', university: '' } : {}), ...(field === 'city' ? { university: '' } : {}) }));
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -72,35 +63,32 @@ const RegisterPage = ({ onLogin }: RegisterPageProps) => {
         <form onSubmit={handleSubmit} className="grid gap-4 md:grid-cols-2">
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-300">Nom</label>
-            <input className="input" value={form.lastName} onChange={(e) => handleChange('lastName', e.target.value)} />
+            <input className="input" placeholder="Abdoul Majid" value={form.lastName} onChange={(e) => handleChange('lastName', e.target.value)} required />
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-300">Prénom</label>
-            <input className="input" value={form.firstName} onChange={(e) => handleChange('firstName', e.target.value)} />
+            <input className="input" placeholder="Harouna Idi" value={form.firstName} onChange={(e) => handleChange('firstName', e.target.value)} required />
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-300">Pays</label>
-            <input className="input" value={form.country} onChange={(e) => handleChange('country', e.target.value)} />
+            <select className="input" value={form.country} onChange={(e) => handleChange('country', e.target.value)} required><option value="">Sélectionner un pays</option><option value="Maroc">Maroc</option></select>
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-300">Région / ville</label>
-            <input className="input" value={form.city} onChange={(e) => handleChange('city', e.target.value)} />
+            <select className="input" value={form.city} onChange={(e) => handleChange('city', e.target.value)} disabled={!form.country} required><option value="">Sélectionner une ville</option>{form.country === 'Maroc' && <option value="Casablanca">Casablanca</option>}</select>
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-300">Faculté / université</label>
-            <input className="input" value={form.university} onChange={(e) => handleChange('university', e.target.value)} />
+            <select className="input" value={form.university} onChange={(e) => handleChange('university', e.target.value)} disabled={!form.city} required><option value="">Sélectionner une faculté</option>{form.city === 'Casablanca' && <option value="Université Hassan II">Université Hassan II</option>}</select>
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-300">Niveau d’études</label>
-            <select className="input" value={form.level} onChange={(e) => handleChange('level', e.target.value)}>
-              <option value="Licence">Licence</option>
-              <option value="Master">Master</option>
-              <option value="Doctorat">Doctorat</option>
-            </select>
+            <select className="input" value={form.level} onChange={(e) => handleChange('level', e.target.value)} required><option value="">Sélectionner un niveau</option>{Array.from({ length: 10 }, (_, index) => <option key={index} value={`S${index + 1}`}>S{index + 1}</option>)}</select>
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-300">Semestre</label>
-            <select className="input" value={form.semester} onChange={(e) => handleChange('semester', e.target.value)}>
+            <select className="input" value={form.semester} onChange={(e) => handleChange('semester', e.target.value)} required>
+              <option value="">Sélectionner un semestre</option>
               {Array.from({ length: 10 }, (_, index) => `S${index + 1}`).map((semester) => (
                 <option key={semester} value={semester}>{semester}</option>
               ))}
@@ -108,7 +96,7 @@ const RegisterPage = ({ onLogin }: RegisterPageProps) => {
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-300">Email</label>
-            <input type="email" className="input" value={form.email} onChange={(e) => handleChange('email', e.target.value)} />
+            <input type="email" className="input" placeholder="pharmacampus@gmail.com" value={form.email} onChange={(e) => handleChange('email', e.target.value)} required />
           </div>
           <div className="md:col-span-2">
             <label className="mb-1 block text-sm font-medium text-slate-300">Mot de passe</label>
@@ -133,7 +121,7 @@ const RegisterPage = ({ onLogin }: RegisterPageProps) => {
                 {showPassword ? 'Masquer' : 'Afficher'}
               </button>
             </div>
-            <p className="mt-1 text-xs text-slate-400">6 à 8 caractères, avec au moins une lettre.</p>
+            <p className="mt-1 text-xs text-slate-400">6 à 8 caractères, uniquement lettres et chiffres, avec au moins une lettre et un chiffre.</p>
           </div>
           <div className="md:col-span-2">
             <label className="mb-1 block text-sm font-medium text-slate-300">Confirmation du mot de passe</label>
@@ -155,11 +143,11 @@ const RegisterPage = ({ onLogin }: RegisterPageProps) => {
           </div>
           <div className="md:col-span-2">
             <label className="mb-1 block text-sm font-medium text-slate-300">Photo de profil (facultative)</label>
-            <input className="input" value={form.photoUrl} onChange={(e) => handleChange('photoUrl', e.target.value)} placeholder="URL de l’image" />
+            <input className="input" type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => setError(e.target.files?.[0] ? 'La photo sera disponible dans la modification du profil après création du compte.' : '')} />
           </div>
           <div className="md:col-span-2">
             <label className="mb-1 block text-sm font-medium text-slate-300">Présentation</label>
-            <textarea className="input min-h-24" value={form.bio} onChange={(e) => handleChange('bio', e.target.value)} />
+            <textarea className="input min-h-24" placeholder="Votre présentation (facultative)" value={form.bio} onChange={(e) => handleChange('bio', e.target.value)} />
           </div>
 
           {error && <div className="md:col-span-2 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}

@@ -43,6 +43,11 @@ button, input, select, textarea {
   font: inherit;
 }
 
+option {
+  color: #10231f;
+  background: #f2f9f8;
+}
+
 .card {
   @apply rounded-2xl border border-white/10 bg-white/[0.06] shadow-soft backdrop-blur;
 }

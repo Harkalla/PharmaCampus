@@ -1,6 +1,6 @@
 import { FormEvent, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { signInWithSupabase } from '../lib/supabase';
+import { requestPasswordReset, signInWithSupabase } from '../lib/supabase';
 import { User } from '../types';
 
 type LoginPageProps = {
@@ -12,6 +12,7 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
   const [password, setPassword] = useState('student123');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [resetSent, setResetSent] = useState('');
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -54,7 +55,8 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
           <button className="primary-btn w-full" type="submit">Se connecter</button>
         </form>
 
-        <button type="button" className="mt-4 block w-full text-center text-sm font-semibold text-brand-300" onClick={() => setError('La récupération du mot de passe doit être configurée dans Supabase ou par l’administrateur.')}>Mot de passe oublié ?</button>
+        <button type="button" className="mt-4 block w-full text-center text-sm font-semibold text-brand-300" onClick={async () => { setError(''); setResetSent(''); if (!email) { setError('Saisissez votre email pour recevoir le lien.'); return; } try { setResetSent(await requestPasswordReset(email)); } catch (err) { setError((err as Error).message); } }}>Mot de passe oublié ?</button>
+        {resetSent && <p className="mt-2 text-center text-sm text-emerald-300">{resetSent}</p>}
 
         <div className="mt-5 text-center text-sm text-slate-400">
           Pas encore de compte ? <Link to="/register" className="font-semibold text-brand-300">Créer un compte</Link>
