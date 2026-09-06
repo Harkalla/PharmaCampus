@@ -7,17 +7,27 @@ type RegisterPageProps = {
   onLogin: (user: User, token: string) => void;
 };
 
+const countryCities: Record<string, string[]> = {
+  Niger: ['Niamey', 'Maradi', 'Zinder'], Mali: ['Bamako', 'Sikasso', 'Mopti'], Senegal: ['Dakar', 'Thiès', 'Saint-Louis'],
+  "Côte d'Ivoire": ['Yamoussoukro', 'Abidjan', 'Bouaké'], 'Burkina Faso': ['Ouagadougou', 'Bobo-Dioulasso', 'Koudougou'], Guinée: ['Conakry', 'Nzérékoré', 'Kindia'], Bénin: ['Porto-Novo', 'Cotonou', 'Abomey-Calavi'], Togo: ['Lomé', 'Sokodé', 'Kara'], Ghana: ['Accra', 'Kumasi', 'Tamale'], Nigeria: ['Abuja', 'Lagos', 'Kano'], Mauritanie: ['Nouakchott', 'Nouadhibou', 'Rosso'],
+  Cameroun: ['Yaoundé', 'Douala', 'Bafoussam'], Tchad: ["N'Djamena", 'Moundou', 'Sarh'], 'République centrafricaine': ['Bangui', 'Bimbo', 'Berbérati'], 'République démocratique du Congo': ['Kinshasa', 'Lubumbashi', 'Goma'], 'République du Congo': ['Brazzaville', 'Pointe-Noire', 'Dolisie'], Gabon: ['Libreville', 'Port-Gentil', 'Franceville'],
+  Maroc: ['Rabat', 'Casablanca', 'Fès'], Algérie: ['Alger', 'Oran', 'Constantine'], Tunisie: ['Tunis', 'Sfax', 'Sousse'], France: ['Paris', 'Lyon', 'Marseille'], Belgique: ['Bruxelles', 'Anvers', 'Liège'], Canada: ['Ottawa', 'Montréal', 'Toronto'], Suisse: ['Berne', 'Genève', 'Zurich']
+};
+
+const countries = Object.keys(countryCities);
+const facultiesByCity: Record<string, string[]> = { Casablanca: ['Université Hassan II'] };
+
 const RegisterPage = ({ onLogin }: RegisterPageProps) => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [form, setForm] = useState({
     firstName: '', lastName: '', email: '', password: '', passwordConfirmation: '',
-    country: '', city: '', university: '', level: '', semester: '', bio: '',
+    country: '', city: '', cityOther: '', university: '', universityOther: '', level: '', semester: '', bio: '',
     photoUrl: ''
   });
   const [error, setError] = useState('');
 
-  const handleChange = (field: string, value: string) => setForm((current) => ({ ...current, [field]: value, ...(field === 'country' ? { city: '', university: '' } : {}), ...(field === 'city' ? { university: '' } : {}) }));
+  const handleChange = (field: string, value: string) => setForm((current) => ({ ...current, [field]: value, ...(field === 'country' ? { city: '', cityOther: '', university: '', universityOther: '' } : {}), ...(field === 'city' ? { university: '', universityOther: '' } : {}) }));
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -38,8 +48,8 @@ const RegisterPage = ({ onLogin }: RegisterPageProps) => {
         firstName: form.firstName,
         lastName: form.lastName,
         country: form.country,
-        city: form.city,
-        university: form.university,
+        city: form.city === 'Autre' ? form.cityOther : form.city,
+        university: form.university === 'Autre' ? form.universityOther : form.university,
         level: form.level,
         semester: form.semester,
         bio: form.bio,
@@ -71,15 +81,17 @@ const RegisterPage = ({ onLogin }: RegisterPageProps) => {
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-300">Pays</label>
-            <select className="input" value={form.country} onChange={(e) => handleChange('country', e.target.value)} required><option value="">Sélectionner un pays</option><option value="Maroc">Maroc</option></select>
+            <input className="input" list="country-options" value={form.country} onChange={(e) => handleChange('country', e.target.value)} placeholder="Rechercher un pays" required /><datalist id="country-options">{countries.map((country) => <option key={country} value={country} />)}</datalist>
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-300">Région / ville</label>
-            <select className="input" value={form.city} onChange={(e) => handleChange('city', e.target.value)} disabled={!form.country} required><option value="">Sélectionner une ville</option>{form.country === 'Maroc' && <option value="Casablanca">Casablanca</option>}</select>
+            <select className="input" value={form.city} onChange={(e) => handleChange('city', e.target.value)} disabled={!countryCities[form.country]} required><option value="">Sélectionner une ville</option>{(countryCities[form.country] || []).map((city) => <option key={city}>{city}</option>)}{form.country && <option value="Autre">Autre</option>}</select>
+            {form.city === 'Autre' && <input className="input mt-2" placeholder="Entrez votre ville/région" value={form.cityOther} onChange={(e) => setForm({ ...form, cityOther: e.target.value })} required />}
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-300">Faculté / université</label>
-            <select className="input" value={form.university} onChange={(e) => handleChange('university', e.target.value)} disabled={!form.city} required><option value="">Sélectionner une faculté</option>{form.city === 'Casablanca' && <option value="Université Hassan II">Université Hassan II</option>}</select>
+            <select className="input" value={form.university} onChange={(e) => handleChange('university', e.target.value)} disabled={!form.city} required><option value="">Sélectionner une faculté</option>{(facultiesByCity[form.city] || []).map((faculty) => <option key={faculty}>{faculty}</option>)}<option value="Autre">Autre</option></select>
+            {form.university === 'Autre' && <input className="input mt-2" placeholder="Nom de votre faculté / établissement" value={form.universityOther} onChange={(e) => setForm({ ...form, universityOther: e.target.value })} required />}
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-300">Niveau d’études</label>
