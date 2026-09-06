@@ -43,8 +43,16 @@ const Layout = ({ user, title, children, onLogout }: LayoutProps) => {
   };
 
   const menuItems = user.role === 'admin'
-    ? [...navItems, ...utilityItems.map((item) => ({ ...item, icon: '•' })), { to: '/admin', label: 'Administration', icon: '♛' }, { to: '/settings', label: 'Paramètres', icon: '⚙' }]
-    : [...navItems, ...utilityItems.map((item) => ({ ...item, icon: '•' })), { to: '/contributions', label: 'Mes contributions', icon: '▱' }, { to: '/settings', label: 'Paramètres', icon: '⚙' }];
+    ? [{ to: '/admin', label: 'Dashboard', icon: '▦' }, { to: '/admin', label: 'Contributions à examiner', icon: '📥' }, { to: '/notifications', label: 'Notifications', icon: '🔔' }, { to: '/settings', label: 'Paramètres administrateur', icon: '⚙' }]
+    : [
+      { to: '/dashboard', label: 'Accueil', icon: '🏠' },
+      { to: '/profil', label: 'Mon profil', icon: '👤' },
+      { to: '/entraide', label: 'Communauté', icon: '👥' },
+      { to: '/niveaux/S5', label: 'Mes cours', icon: '📚' },
+      { to: '/notifications', label: 'Notifications', icon: '🔔' },
+      { to: '/remarques', label: 'Remarques', icon: '📝' },
+      { to: '/settings', label: 'Paramètres', icon: '⚙' }
+    ];
 
   return (
     <div className="min-h-screen bg-transparent text-slate-100">
@@ -52,7 +60,7 @@ const Layout = ({ user, title, children, onLogout }: LayoutProps) => {
       <aside className={`fixed inset-y-0 left-0 z-[60] w-80 max-w-[86vw] border-r border-white/10 bg-[#071412] p-5 shadow-2xl transition-transform ${menuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="mb-7 flex items-center justify-between"><div className="text-xl font-black text-emerald-50">PharmaCampus</div><button className="secondary-btn px-3" onClick={() => setMenuOpen(false)} aria-label="Fermer le menu">×</button></div>
         <p className="section-label mb-3">{user.role === 'admin' ? 'Espace administrateur' : 'Espace étudiant'}</p>
-        <nav className="space-y-1">{menuItems.map((item) => <Link key={`${item.to}-${item.label}`} to={item.to} onClick={() => setMenuOpen(false)} className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-slate-300 transition hover:bg-brand-300/10 hover:text-brand-300"><span className="w-6 text-center text-lg">{item.icon}</span>{item.label}</Link>)}</nav>
+        <nav className="space-y-1">{menuItems.map((item) => <NavLink key={`${item.to}-${item.label}`} to={item.to} onClick={() => setMenuOpen(false)} className={({ isActive }) => `flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold transition ${isActive ? 'bg-brand-300/15 text-brand-300' : 'text-slate-300 hover:bg-brand-300/10 hover:text-brand-300'}`}><span className="w-6 text-center text-lg">{item.icon}</span>{item.label}</NavLink>)}</nav>
         <button className="mt-5 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold text-red-200 hover:bg-red-400/10" onClick={onLogout}><span className="w-6 text-center">↪</span>Déconnexion</button>
       </aside>
       <header className="sticky top-0 z-30 border-b border-white/10 bg-[#071412]/85 backdrop-blur-xl">

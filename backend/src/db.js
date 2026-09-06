@@ -149,6 +149,15 @@ function initializeDatabase() {
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE IF NOT EXISTS user_preferences (
+      user_id TEXT PRIMARY KEY,
+      notifications TEXT NOT NULL DEFAULT '{}',
+      appearance TEXT NOT NULL DEFAULT 'dark',
+      language TEXT NOT NULL DEFAULT 'fr',
+      confirm_actions INTEGER DEFAULT 1,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
     CREATE TABLE IF NOT EXISTS reports (
       id TEXT PRIMARY KEY,
       user_id TEXT,

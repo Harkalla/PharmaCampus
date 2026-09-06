@@ -112,6 +112,23 @@ app.get('/api/auth/me', authMiddleware, (req, res) => {
   res.json({ user: sanitizeUser(req.user) });
 });
 
+app.get('/api/preferences', authMiddleware, (req, res) => {
+  const preferences = db.prepare('SELECT * FROM user_preferences WHERE user_id = ?').get(req.user.id) || {
+    user_id: req.user.id, notifications: '{}', appearance: 'dark', language: 'fr', confirm_actions: 1
+  };
+  res.json({ ...preferences, notifications: JSON.parse(preferences.notifications || '{}') });
+});
+
+app.put('/api/preferences', authMiddleware, (req, res) => {
+  const { notifications = {}, appearance = 'dark', language = 'fr', confirmActions = true } = req.body;
+  if (!['dark', 'light', 'system'].includes(appearance) || !['fr', 'en'].includes(language)) return res.status(400).json({ error: 'Préférence invalide.' });
+  db.prepare(`INSERT INTO user_preferences (user_id, notifications, appearance, language, confirm_actions, updated_at)
+    VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(user_id) DO UPDATE SET notifications = excluded.notifications, appearance = excluded.appearance, language = excluded.language, confirm_actions = excluded.confirm_actions, updated_at = CURRENT_TIMESTAMP`)
+    .run(req.user.id, JSON.stringify(notifications), appearance, language, confirmActions ? 1 : 0);
+  res.json({ message: 'Préférences enregistrées.' });
+});
+
 app.patch('/api/profile', authMiddleware, profileUpload.single('photo'), (req, res) => {
   const { firstName, lastName, country, city, university, level, semester, bio, removePhoto } = req.body;
   if (!firstName || !lastName) return res.status(400).json({ error: 'Nom et prénom requis.' });

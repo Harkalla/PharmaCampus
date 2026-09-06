@@ -48,6 +48,26 @@ option {
   background: #f2f9f8;
 }
 
+html[data-theme='light'] body {
+  color: #10231f;
+  background: linear-gradient(180deg, #f4faf8 0%, #e5f2ee 100%);
+}
+
+html[data-theme='light'] .card,
+html[data-theme='light'] .surface-muted {
+  border-color: rgba(16, 35, 31, 0.12);
+  background: rgba(255, 255, 255, 0.78);
+}
+
+html[data-theme='light'] .text-emerald-50 { color: #10231f; }
+html[data-theme='light'] .text-slate-300 { color: #334e49; }
+html[data-theme='light'] .text-slate-400,
+html[data-theme='light'] .text-slate-500 { color: #58706b; }
+
+@media (prefers-color-scheme: light) {
+  html[data-theme='system'] body { color: #10231f; background: linear-gradient(180deg, #f4faf8 0%, #e5f2ee 100%); }
+}
+
 .card {
   @apply rounded-2xl border border-white/10 bg-white/[0.06] shadow-soft backdrop-blur;
 }

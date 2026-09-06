@@ -18,6 +18,8 @@ import SearchPage from './pages/SearchPage';
 import AdminPage from './pages/AdminPage';
 import SettingsPage from './pages/SettingsPage';
 import ContributionsPage from './pages/ContributionsPage';
+import RemarksPage from './pages/RemarksPage';
+import NotificationsPage from './pages/NotificationsPage';
 import { getSupabaseSessionUser, supabase } from './lib/supabase';
 import { User } from './types';
 
@@ -69,6 +71,8 @@ const App = () => {
       <Route path="/matiere/:subjectId" element={user ? <CoursePage user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
       <Route path="/documents" element={user ? <DocumentsPage user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
       <Route path="/contributions" element={user ? <ContributionsPage user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
+      <Route path="/remarques" element={user ? <RemarksPage user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
+      <Route path="/notifications" element={user ? <NotificationsPage user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
       <Route path="/examens" element={user ? <ExamsPage user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
       <Route path="/qcm" element={user ? <QuizzesPage user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
       <Route path="/medicaments" element={user ? <MedicamentsPage user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
