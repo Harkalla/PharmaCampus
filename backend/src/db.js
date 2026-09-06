@@ -53,6 +53,7 @@ function initializeDatabase() {
       subject_id TEXT,
       semester TEXT,
       type TEXT,
+      category TEXT DEFAULT 'Autre',
       author TEXT,
       file_name TEXT,
       file_path TEXT,
@@ -165,7 +166,7 @@ function initializeDatabase() {
   `);
 
   const documentColumns = [
-    ['status', "TEXT DEFAULT 'published'"], ['submitted_by', 'TEXT'], ['year', 'INTEGER'],
+    ['category', "TEXT DEFAULT 'Autre'"], ['status', "TEXT DEFAULT 'published'"], ['submitted_by', 'TEXT'], ['year', 'INTEGER'],
     ['tags', 'TEXT'], ['cover_image', 'TEXT'], ['reviewed_by', 'TEXT'],
     ['reviewed_at', 'TEXT'], ['rejection_reason', 'TEXT']
   ];

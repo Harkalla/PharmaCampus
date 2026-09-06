@@ -16,7 +16,7 @@ const ContributionsPage = ({ user, onLogout }: ContributionsPageProps) => {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [documents, setDocuments] = useState<Contribution[]>([]);
   const [file, setFile] = useState<File | null>(null);
-  const [form, setForm] = useState({ title: '', semester: user.semester || 'S5', subjectId: '', type: 'PDF', year: String(new Date().getFullYear()), description: '' });
+  const [form, setForm] = useState({ title: '', semester: user.semester || 'S5', subjectId: '', category: 'Cours', type: 'PDF', year: String(new Date().getFullYear()), description: '' });
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
@@ -54,6 +54,7 @@ const ContributionsPage = ({ user, onLogout }: ContributionsPageProps) => {
             <select className="input" value={form.subjectId} onChange={(event) => setForm({ ...form, subjectId: event.target.value })} required><option value="">Matière</option>{subjects.filter((subject) => subject.semester === form.semester).map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}</select>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
+            <select className="input" value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })}><option>Cours</option><option>Examen</option><option>Corrigé</option><option>TP</option><option>QCM</option><option>Autre</option></select>
             <select className="input" value={form.type} onChange={(event) => setForm({ ...form, type: event.target.value })}><option>PDF</option><option>Word</option><option>PowerPoint</option><option>Image</option><option>Vidéo</option></select>
             <input className="input" type="number" placeholder="Année" value={form.year} onChange={(event) => setForm({ ...form, year: event.target.value })} />
           </div>

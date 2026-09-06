@@ -131,7 +131,7 @@ app.get('/api/subject/:subjectId', (req, res) => {
   if (!subject) return res.status(404).json({ error: 'Matière introuvable.' });
 
   const courses = db.prepare('SELECT * FROM courses WHERE subject_id = ?').all(subject.id);
-  const documents = db.prepare('SELECT * FROM documents WHERE subject_id = ?').all(subject.id);
+  const documents = db.prepare("SELECT * FROM documents WHERE subject_id = ? AND COALESCE(status, 'published') = 'published'").all(subject.id);
   const exams = db.prepare('SELECT * FROM exams WHERE subject_id = ?').all(subject.id);
   const quiz = db.prepare('SELECT * FROM quizzes WHERE subject_id = ?').all(subject.id);
 
@@ -276,12 +276,13 @@ app.get('/api/admin/summary', authMiddleware, adminMiddleware, (req, res) => {
 
 app.post('/api/documents/contribute', authMiddleware, upload.single('file'), (req, res) => {
   const { title, description, subjectId, semester, type, year } = req.body;
+  if (req.user.role !== 'user') return res.status(403).json({ error: 'Seuls les étudiants peuvent proposer une contribution.' });
   if (!title || !subjectId || !req.file) return res.status(400).json({ error: 'Titre, matière et fichier requis.' });
   const id = uuidv4();
   const filePath = `/uploads/${req.file.filename}`;
-  db.prepare(`INSERT INTO documents (id, title, description, subject_id, semester, type, author, file_name, file_path, status, submitted_by, year)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`)
-    .run(id, title, description || '', subjectId, semester || 'S5', type || 'PDF', `${req.user.first_name} ${req.user.last_name}`, req.file.originalname, filePath, req.user.id, year || null);
+  db.prepare(`INSERT INTO documents (id, title, description, subject_id, semester, type, category, author, file_name, file_path, status, submitted_by, year)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`)
+    .run(id, title, description || '', subjectId, semester || 'S5', type || 'PDF', type || 'Autre', `${req.user.first_name} ${req.user.last_name}`, req.file.originalname, filePath, req.user.id, year || null);
   db.prepare('INSERT INTO notifications (id, user_id, title, message, link) VALUES (?, ?, ?, ?, ?)').run(uuidv4(), req.user.id, 'Document envoyé', 'Votre document est en attente de validation.', '/contributions');
   res.status(201).json({ message: 'Document envoyé pour validation.', id });
 });
@@ -299,12 +300,12 @@ app.get('/api/admin/documents/pending', authMiddleware, adminMiddleware, (req, r
 });
 
 app.patch('/api/admin/documents/:id/status', authMiddleware, adminMiddleware, (req, res) => {
-  const { status, rejectionReason } = req.body;
+  const { status, rejectionReason, title, semester, subjectId, category } = req.body;
   if (!['published', 'refused', 'archived'].includes(status)) return res.status(400).json({ error: 'Statut invalide.' });
   if (status === 'refused' && !rejectionReason) return res.status(400).json({ error: 'Un motif est obligatoire pour refuser un document.' });
   const document = db.prepare('SELECT * FROM documents WHERE id = ?').get(req.params.id);
   if (!document) return res.status(404).json({ error: 'Document introuvable.' });
-  db.prepare('UPDATE documents SET status = ?, reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP, rejection_reason = ? WHERE id = ?').run(status, req.user.id, rejectionReason || null, req.params.id);
+  db.prepare('UPDATE documents SET status = ?, title = COALESCE(?, title), semester = COALESCE(?, semester), subject_id = COALESCE(?, subject_id), category = COALESCE(?, category), reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP, rejection_reason = ? WHERE id = ?').run(status, title || null, semester || null, subjectId || null, category || null, req.user.id, rejectionReason || null, req.params.id);
   if (document.submitted_by) {
     const message = status === 'published' ? 'Votre document a été validé et publié.' : status === 'refused' ? `Votre document a été refusé : ${rejectionReason}` : 'Votre document a été archivé.';
     db.prepare('INSERT INTO notifications (id, user_id, title, message, link) VALUES (?, ?, ?, ?, ?)').run(uuidv4(), document.submitted_by, 'Mise à jour de votre document', message, '/contributions');
@@ -325,7 +326,7 @@ app.get('/api/search', (req, res) => {
     }
   });
 
-  const documents = db.prepare('SELECT * FROM documents').all();
+  const documents = db.prepare("SELECT * FROM documents WHERE COALESCE(status, 'published') = 'published'").all();
   documents.forEach((item) => {
     if (`${item.title} ${item.description}`.toLowerCase().includes(query)) {
       results.push({ type: 'Document', label: item.title, link: `/documents` });
@@ -370,15 +371,15 @@ app.post('/api/admin/subject', authMiddleware, adminMiddleware, (req, res) => {
 });
 
 app.post('/api/admin/documents', authMiddleware, adminMiddleware, upload.single('file'), (req, res) => {
-  const { title, description, subjectId, semester, type, author, year, tags } = req.body;
+  const { title, description, subjectId, semester, type, category, author, year, tags } = req.body;
   if (!title || !subjectId) return res.status(400).json({ error: 'Titre et matière requis.' });
 
   const fileName = req.file ? req.file.originalname : 'document.pdf';
   const filePath = req.file ? `/uploads/${req.file.filename}` : '/uploads/sample.pdf';
 
   const id = uuidv4();
-  db.prepare('INSERT INTO documents (id, title, description, subject_id, semester, type, author, file_name, file_path, status, submitted_by, year, tags) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, \'published\', ?, ?, ?)')
-    .run(id, title, description || '', subjectId, semester || 'S5', type || 'PDF', author || 'Admin', fileName, filePath, req.user.id, year || null, tags || '');
+  db.prepare('INSERT INTO documents (id, title, description, subject_id, semester, type, category, author, file_name, file_path, status, submitted_by, year, tags) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, \'published\', ?, ?, ?, ?)')
+    .run(id, title, description || '', subjectId, semester || 'S5', type || 'PDF', category || 'Autre', author || 'Admin', fileName, filePath, req.user.id, year || null, tags || '');
 
   res.status(201).json({ message: 'Document ajouté.' });
 });

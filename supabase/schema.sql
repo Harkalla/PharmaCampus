@@ -49,6 +49,7 @@ create table if not exists public.documents (
   subject_id uuid references public.subjects(id) on delete set null,
   semester text,
   type text,
+  category text not null default 'Autre',
   author text,
   file_name text,
   file_path text,
@@ -209,7 +210,7 @@ for select using (true);
 drop policy if exists "Users can update their own profile" on public.profiles;
 create policy "Users can update their own profile" on public.profiles
 for update using (auth.uid() = id)
-with check (auth.uid() = id);
+with check ((auth.uid() = id and role = 'user') or public.is_admin());
 
 drop policy if exists "Users can insert their own profile" on public.profiles;
 create policy "Users can insert their own profile" on public.profiles
@@ -241,10 +242,40 @@ for all using (public.is_admin()) with check (public.is_admin());
 
 drop policy if exists "Anyone can read documents" on public.documents;
 create policy "Anyone can read documents" on public.documents
-for select using (true);
+for select using (status = 'published' or public.is_admin() or auth.uid() = submitted_by);
 
 drop policy if exists "Admins can manage documents" on public.documents;
 create policy "Admins can manage documents" on public.documents
+for all using (public.is_admin()) with check (public.is_admin());
+
+create table if not exists public.document_contributions (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  title text not null,
+  description text,
+  subject_id uuid references public.subjects(id) on delete set null,
+  semester text,
+  category text not null default 'Autre',
+  type text,
+  year integer,
+  file_name text not null,
+  file_path text not null,
+  status text not null default 'pending' check (status in ('pending','published','refused','archived')),
+  rejection_reason text,
+  reviewed_by uuid references public.profiles(id) on delete set null,
+  reviewed_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+alter table public.document_contributions enable row level security;
+drop policy if exists "Students can create contributions" on public.document_contributions;
+create policy "Students can create contributions" on public.document_contributions
+for insert with check (auth.uid() = user_id and not public.is_admin());
+drop policy if exists "Users can view own contributions" on public.document_contributions;
+create policy "Users can view own contributions" on public.document_contributions
+for select using (auth.uid() = user_id or public.is_admin());
+drop policy if exists "Admins can manage contributions" on public.document_contributions;
+create policy "Admins can manage contributions" on public.document_contributions
 for all using (public.is_admin()) with check (public.is_admin());
 
 drop policy if exists "Anyone can read exams" on public.exams;

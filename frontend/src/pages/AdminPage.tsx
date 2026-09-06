@@ -27,6 +27,7 @@ type PendingDocument = DocumentItem & { first_name?: string; last_name?: string;
 const AdminPage = ({ user, onLogout }: AdminPageProps) => {
   const [data, setData] = useState<AdminData | null>(null);
   const [pending, setPending] = useState<PendingDocument[]>([]);
+  const [categories, setCategories] = useState<Record<string, string>>({});
   const [error, setError] = useState('');
 
   const loadData = () => Promise.all([
@@ -41,11 +42,11 @@ const AdminPage = ({ user, onLogout }: AdminPageProps) => {
   const updateStatus = async (id: string, status: 'published' | 'refused') => {
     let rejectionReason = '';
     if (status === 'refused') {
-      rejectionReason = window.prompt('Motif obligatoire du refus :', 'Document illisible') || '';
+      rejectionReason = window.prompt('Motif obligatoire : Document illisible, mauvais niveau, mauvaise matière, document incomplet, document incorrect, doublon, contenu non pertinent ou autre', 'Document illisible') || '';
       if (!rejectionReason) return;
     }
     try {
-      await apiFetch(`/admin/documents/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status, rejectionReason }) });
+      await apiFetch(`/admin/documents/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status, rejectionReason, category: categories[id] || 'Autre' }) });
       await loadData();
     } catch (err) { setError((err as Error).message); }
   };
@@ -69,7 +70,7 @@ const AdminPage = ({ user, onLogout }: AdminPageProps) => {
       <section className="card mt-6 p-6">
         <div className="mb-5 flex items-center justify-between"><div><p className="section-label">Modération</p><h2 className="mt-2 text-2xl font-black text-emerald-50">Documents en attente</h2></div><span className="badge text-amber-300">{pending.length} à traiter</span></div>
         <div className="space-y-3">
-          {pending.map((document) => <article key={document.id} className="surface-muted flex flex-col gap-4 p-4 lg:flex-row lg:items-center lg:justify-between"><div><h3 className="font-bold text-emerald-50">{document.title}</h3><p className="mt-1 text-sm text-slate-400">{document.first_name} {document.last_name} • {document.semester} • {document.type} {document.year ? `• ${document.year}` : ''}</p><p className="mt-2 text-sm text-slate-500">{document.description || 'Aucune description.'}</p><a className="mt-2 inline-block text-sm font-semibold text-brand-300" href={`http://localhost:4000${document.file_path}`} target="_blank" rel="noreferrer">Prévisualiser le fichier</a></div><div className="flex gap-2"><button className="primary-btn" onClick={() => updateStatus(document.id, 'published')}>Valider</button><button className="secondary-btn border-red-300/30 text-red-200" onClick={() => updateStatus(document.id, 'refused')}>Refuser</button></div></article>)}
+          {pending.map((document) => <article key={document.id} className="surface-muted flex flex-col gap-4 p-4 lg:flex-row lg:items-center lg:justify-between"><div><h3 className="font-bold text-emerald-50">{document.title}</h3><p className="mt-1 text-sm text-slate-400">{document.first_name} {document.last_name} • {document.semester} • {document.type} {document.year ? `• ${document.year}` : ''}</p><p className="mt-2 text-sm text-slate-500">{document.description || 'Aucune description.'}</p><a className="mt-2 inline-block text-sm font-semibold text-brand-300" href={`http://localhost:4000${document.file_path}`} target="_blank" rel="noreferrer">Prévisualiser le fichier</a></div><div className="flex flex-wrap gap-2"><select className="input min-w-32" value={categories[document.id] || 'Autre'} onChange={(event) => setCategories((current) => ({ ...current, [document.id]: event.target.value }))}><option>Cours</option><option>Examen</option><option>TP</option><option>QCM</option><option>Autre</option></select><button className="primary-btn" onClick={() => updateStatus(document.id, 'published')}>Valider</button><button className="secondary-btn border-red-300/30 text-red-200" onClick={() => updateStatus(document.id, 'refused')}>Refuser</button></div></article>)}
           {!pending.length && <p className="text-slate-500">Aucun document en attente.</p>}
         </div>
       </section>
