@@ -1,0 +1,351 @@
+const express = require('express');
+const cors = require('cors');
+const path = require('path');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const multer = require('multer');
+const { v4: uuidv4 } = require('uuid');
+const { db, initializeDatabase } = require('./db');
+
+const app = express();
+const PORT = process.env.PORT || 4000;
+const JWT_SECRET = process.env.JWT_SECRET || 'pharmacampus-secret-key';
+const uploadDir = path.join(__dirname, '..', 'uploads');
+
+initializeDatabase();
+app.use(cors());
+app.use(express.json({ limit: '10mb' }));
+app.use('/uploads', express.static(uploadDir));
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, uploadDir),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    cb(null, `${Date.now()}-${uuidv4()}${ext}`);
+  }
+});
+const upload = multer({ storage });
+
+function signToken(user) {
+  return jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
+}
+
+function authMiddleware(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Token manquant ou invalide.' });
+  }
+
+  const token = authHeader.split(' ')[1];
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(decoded.id);
+    if (!user) return res.status(401).json({ error: 'Utilisateur introuvable.' });
+    req.user = user;
+    next();
+  } catch (error) {
+    return res.status(401).json({ error: 'Session invalide.' });
+  }
+}
+
+function adminMiddleware(req, res, next) {
+  if (req.user?.role !== 'admin') {
+    return res.status(403).json({ error: 'Accès réservé à l’administrateur.' });
+  }
+  next();
+}
+
+function sanitizeUser(user) {
+  const { password_hash, ...rest } = user;
+  return rest;
+}
+
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', message: 'PharmaCampus API is running' });
+});
+
+app.post('/api/auth/register', async (req, res) => {
+  const { firstName, lastName, email, password, country, city, university, level, semester, bio, photoUrl } = req.body;
+  if (!firstName || !lastName || !email || !password) {
+    return res.status(400).json({ error: 'Informations de base manquantes.' });
+  }
+
+  const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email.toLowerCase());
+  if (existing) {
+    return res.status(409).json({ error: 'Un compte existe déjà avec cette adresse email.' });
+  }
+
+  const id = uuidv4();
+  const passwordHash = await bcrypt.hash(password, 10);
+  const user = db.prepare(`
+    INSERT INTO users (id, first_name, last_name, email, password_hash, role, country, city, university, level, semester, bio, photo_url)
+    VALUES (?, ?, ?, ?, ?, 'user', ?, ?, ?, ?, ?, ?, ?)
+  `).run(id, firstName, lastName, email.toLowerCase(), passwordHash, country || '', city || '', university || '', level || '', semester || '', bio || '', photoUrl || '');
+
+  const createdUser = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
+  const token = signToken(createdUser);
+  res.status(201).json({ token, user: sanitizeUser(createdUser) });
+});
+
+app.post('/api/auth/login', async (req, res) => {
+  const { email, password } = req.body;
+  const user = db.prepare('SELECT * FROM users WHERE email = ?').get((email || '').toLowerCase());
+  if (!user) return res.status(401).json({ error: 'Identifiants invalides.' });
+
+  const valid = await bcrypt.compare(password, user.password_hash);
+  if (!valid) return res.status(401).json({ error: 'Identifiants invalides.' });
+
+  const token = signToken(user);
+  res.json({ token, user: sanitizeUser(user) });
+});
+
+app.get('/api/auth/me', authMiddleware, (req, res) => {
+  res.json({ user: sanitizeUser(req.user) });
+});
+
+app.get('/api/semesters', (req, res) => {
+  const semesters = Array.from({ length: 10 }, (_, index) => `S${index + 1}`);
+  const subjects = db.prepare('SELECT * FROM subjects ORDER BY semester, name').all();
+
+  const grouped = semesters.map((semester) => ({
+    id: semester,
+    name: semester,
+    subjects: subjects.filter((item) => item.semester === semester)
+  }));
+
+  res.json({ semesters: grouped });
+});
+
+app.get('/api/subjects', (req, res) => {
+  const { semester } = req.query;
+  const query = semester ? 'SELECT * FROM subjects WHERE semester = ? ORDER BY name' : 'SELECT * FROM subjects ORDER BY semester, name';
+  const rows = semester ? db.prepare(query).all(semester) : db.prepare(query).all();
+  res.json({ subjects: rows });
+});
+
+app.get('/api/subject/:subjectId', (req, res) => {
+  const subject = db.prepare('SELECT * FROM subjects WHERE id = ?').get(req.params.subjectId);
+  if (!subject) return res.status(404).json({ error: 'Matière introuvable.' });
+
+  const courses = db.prepare('SELECT * FROM courses WHERE subject_id = ?').all(subject.id);
+  const documents = db.prepare('SELECT * FROM documents WHERE subject_id = ?').all(subject.id);
+  const exams = db.prepare('SELECT * FROM exams WHERE subject_id = ?').all(subject.id);
+  const quiz = db.prepare('SELECT * FROM quizzes WHERE subject_id = ?').all(subject.id);
+
+  res.json({ subject, courses, documents, exams, quizzes: quiz });
+});
+
+app.get('/api/courses', (req, res) => {
+  const course = db.prepare('SELECT * FROM courses ORDER BY created_at DESC').all();
+  res.json({ courses: course });
+});
+
+app.get('/api/documents', (req, res) => {
+  const { q, subjectId } = req.query;
+  let rows = db.prepare('SELECT * FROM documents ORDER BY created_at DESC').all();
+  if (subjectId) rows = rows.filter((row) => row.subject_id === subjectId);
+  if (q) rows = rows.filter((row) => `${row.title} ${row.description}`.toLowerCase().includes(String(q).toLowerCase()));
+  res.json({ documents: rows });
+});
+
+app.get('/api/exams', (req, res) => {
+  const rows = db.prepare('SELECT * FROM exams ORDER BY created_at DESC').all();
+  res.json({ exams: rows });
+});
+
+app.get('/api/quizzes', (req, res) => {
+  const rows = db.prepare('SELECT * FROM quizzes ORDER BY title').all();
+  res.json({ quizzes: rows });
+});
+
+app.post('/api/quizzes/submit', authMiddleware, (req, res) => {
+  const { quizId, answers } = req.body;
+  const quiz = db.prepare('SELECT * FROM quizzes WHERE id = ?').get(quizId);
+  if (!quiz) return res.status(404).json({ error: 'Quiz introuvable.' });
+
+  const questions = JSON.parse(quiz.questions || '[]');
+  let score = 0;
+
+  questions.forEach((question) => {
+    const userAnswer = answers?.[question.id] || [];
+    const isCorrect = Array.isArray(question.correctAnswers)
+      ? JSON.stringify([...question.correctAnswers].sort()) === JSON.stringify([...userAnswer].sort())
+      : false;
+    if (isCorrect) score += 1;
+  });
+
+  const attemptId = uuidv4();
+  db.prepare('INSERT INTO quiz_attempts (id, user_id, quiz_id, score, total) VALUES (?, ?, ?, ?, ?)').run(attemptId, req.user.id, quizId, score, questions.length);
+
+  res.json({
+    score,
+    total: questions.length,
+    percentage: Math.round((score / questions.length) * 100),
+    result: `${score}/${questions.length}`,
+    questions
+  });
+});
+
+app.get('/api/questions', (req, res) => {
+  const rows = db.prepare(`
+    SELECT q.*, u.first_name, u.last_name, u.photo_url,
+      (SELECT json_group_array(json_object('id', a.id, 'user_id', a.user_id, 'content', a.content, 'created_at', a.created_at)) FROM answers a WHERE a.question_id = q.id) as answers
+    FROM questions q
+    LEFT JOIN users u ON u.id = q.user_id
+    ORDER BY q.created_at DESC
+  `).all();
+
+  res.json({ questions: rows.map((row) => ({ ...row, answers: row.answers ? JSON.parse(row.answers) : [] })) });
+});
+
+app.post('/api/questions', authMiddleware, (req, res) => {
+  const { title, content, subjectId, category } = req.body;
+  if (!title || !content) return res.status(400).json({ error: 'Titre et contenu requis.' });
+  const id = uuidv4();
+  db.prepare('INSERT INTO questions (id, user_id, title, content, subject_id, category) VALUES (?, ?, ?, ?, ?, ?)').run(id, req.user.id, title, content, subjectId || '', category || 'Autres');
+  res.status(201).json({ message: 'Question publiée avec succès.' });
+});
+
+app.get('/api/medicines', (req, res) => {
+  const { q } = req.query;
+  let rows = db.prepare('SELECT * FROM medicines ORDER BY name').all();
+  if (q) {
+    rows = rows.filter((item) => `${item.name} ${item.dci} ${item.therapeutic_class}`.toLowerCase().includes(String(q).toLowerCase()));
+  }
+  res.json({ medicines: rows });
+});
+
+app.get('/api/notifications', authMiddleware, (req, res) => {
+  const rows = db.prepare('SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC').all(req.user.id);
+  res.json({ notifications: rows });
+});
+
+app.post('/api/reports', authMiddleware, (req, res) => {
+  const { type, description } = req.body;
+  const id = uuidv4();
+  db.prepare('INSERT INTO reports (id, user_id, type, description) VALUES (?, ?, ?, ?)').run(id, req.user.id, type, description);
+  res.status(201).json({ message: 'Signalement envoyé à l’administrateur.' });
+});
+
+app.post('/api/suggestions', authMiddleware, (req, res) => {
+  const { title, description } = req.body;
+  const id = uuidv4();
+  db.prepare('INSERT INTO suggestions (id, user_id, title, description) VALUES (?, ?, ?, ?)').run(id, req.user.id, title, description);
+  res.status(201).json({ message: 'Suggestion envoyée avec succès.' });
+});
+
+app.get('/api/dashboard', authMiddleware, (req, res) => {
+  const recentSubjects = db.prepare('SELECT * FROM subjects WHERE semester = ? ORDER BY name LIMIT 4').all(req.user.semester || 'S5');
+  const recentDocuments = db.prepare('SELECT * FROM documents ORDER BY created_at DESC LIMIT 4').all();
+  const quizzes = db.prepare('SELECT * FROM quizzes ORDER BY title LIMIT 3').all();
+  const questions = db.prepare('SELECT * FROM questions ORDER BY created_at DESC LIMIT 3').all();
+  const notifications = db.prepare('SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 5').all(req.user.id);
+  const attempts = db.prepare('SELECT * FROM quiz_attempts WHERE user_id = ? ORDER BY submitted_at DESC LIMIT 5').all(req.user.id);
+
+  res.json({
+    user: sanitizeUser(req.user),
+    recentSubjects,
+    recentDocuments,
+    quizzes,
+    questions,
+    notifications,
+    attempts
+  });
+});
+
+app.get('/api/admin/summary', authMiddleware, adminMiddleware, (req, res) => {
+  const counts = {
+    users: db.prepare('SELECT COUNT(*) as count FROM users').get().count,
+    subjects: db.prepare('SELECT COUNT(*) as count FROM subjects').get().count,
+    documents: db.prepare('SELECT COUNT(*) as count FROM documents').get().count,
+    exams: db.prepare('SELECT COUNT(*) as count FROM exams').get().count,
+    suggestions: db.prepare('SELECT COUNT(*) as count FROM suggestions').get().count,
+    reports: db.prepare('SELECT COUNT(*) as count FROM reports').get().count
+  };
+  res.json({ counts });
+});
+
+app.get('/api/search', (req, res) => {
+  const query = (req.query.q || '').toString().trim().toLowerCase();
+  if (!query) return res.json({ results: [] });
+
+  const results = [];
+
+  const subjects = db.prepare('SELECT * FROM subjects').all();
+  subjects.forEach((item) => {
+    if (`${item.name} ${item.description}`.toLowerCase().includes(query)) {
+      results.push({ type: 'Matière', label: item.name, link: `/niveaux/${item.semester}?subject=${item.id}` });
+    }
+  });
+
+  const documents = db.prepare('SELECT * FROM documents').all();
+  documents.forEach((item) => {
+    if (`${item.title} ${item.description}`.toLowerCase().includes(query)) {
+      results.push({ type: 'Document', label: item.title, link: `/documents` });
+    }
+  });
+
+  const medicines = db.prepare('SELECT * FROM medicines').all();
+  medicines.forEach((item) => {
+    if (`${item.name} ${item.dci}`.toLowerCase().includes(query)) {
+      results.push({ type: 'Médicament', label: item.name, link: `/medicaments` });
+    }
+  });
+
+  const questions = db.prepare('SELECT * FROM questions').all();
+  questions.forEach((item) => {
+    if (`${item.title} ${item.content}`.toLowerCase().includes(query)) {
+      results.push({ type: 'Question', label: item.title, link: `/entraide` });
+    }
+  });
+
+  res.json({ results: results.slice(0, 20) });
+});
+
+app.get('/api/messages', (req, res) => {
+  const rows = db.prepare('SELECT * FROM messages ORDER BY created_at ASC').all();
+  res.json({ messages: rows });
+});
+
+app.post('/api/messages', authMiddleware, (req, res) => {
+  const { room, content } = req.body;
+  const id = uuidv4();
+  db.prepare('INSERT INTO messages (id, room, user_id, content) VALUES (?, ?, ?, ?)').run(id, room || 'general', req.user.id, content);
+  res.status(201).json({ message: 'Message envoyé.' });
+});
+
+app.post('/api/admin/subject', authMiddleware, adminMiddleware, (req, res) => {
+  const { name, semester, description, category } = req.body;
+  if (!name || !semester) return res.status(400).json({ error: 'Nom et semestre requis.' });
+  const id = uuidv4();
+  db.prepare('INSERT INTO subjects (id, name, semester, description, category) VALUES (?, ?, ?, ?, ?)').run(id, name, semester, description || '', category || 'Général');
+  res.status(201).json({ message: 'Matière ajoutée.' });
+});
+
+app.post('/api/admin/documents', authMiddleware, adminMiddleware, upload.single('file'), (req, res) => {
+  const { title, description, subjectId, semester, type, author } = req.body;
+  if (!title || !subjectId) return res.status(400).json({ error: 'Titre et matière requis.' });
+
+  const fileName = req.file ? req.file.originalname : 'document.pdf';
+  const filePath = req.file ? `/uploads/${req.file.filename}` : '/uploads/sample.pdf';
+
+  const id = uuidv4();
+  db.prepare('INSERT INTO documents (id, title, description, subject_id, semester, type, author, file_name, file_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .run(id, title, description || '', subjectId, semester || 'S5', type || 'PDF', author || 'Admin', fileName, filePath);
+
+  res.status(201).json({ message: 'Document ajouté.' });
+});
+
+app.get('/api/admin/reports', authMiddleware, adminMiddleware, (req, res) => {
+  const rows = db.prepare('SELECT * FROM reports ORDER BY created_at DESC').all();
+  res.json({ reports: rows });
+});
+
+app.get('/api/admin/suggestions', authMiddleware, adminMiddleware, (req, res) => {
+  const rows = db.prepare('SELECT * FROM suggestions ORDER BY created_at DESC').all();
+  res.json({ suggestions: rows });
+});
+
+app.listen(PORT, () => {
+  console.log(`PharmaCampus API running on http://localhost:${PORT}`);
+});
