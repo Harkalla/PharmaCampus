@@ -21,7 +21,7 @@ const MessagesPage = ({ user, onLogout }: MessagesPageProps) => {
     apiFetch<{ messages: Message[] }>('/messages').then((res) => setMessages(res.messages)).catch(console.error);
   };
 
-  useEffect(() => { loadMessages(); }, []);
+  useEffect(() => { loadMessages(); const timer = window.setInterval(loadMessages, 5000); return () => window.clearInterval(timer); }, []);
 
   const handleSend = async (e: FormEvent) => {
     e.preventDefault();
@@ -49,6 +49,7 @@ const MessagesPage = ({ user, onLogout }: MessagesPageProps) => {
               <div className="mt-1 text-sm text-slate-600">{message.content}</div>
             </div>
           ))}
+          {!messages.length && <div className="text-center text-slate-500">💬 Vous n’avez aucun message pour le moment.</div>}
         </div>
 
         <form onSubmit={handleSend} className="mt-5 flex gap-3">

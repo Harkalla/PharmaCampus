@@ -26,6 +26,7 @@ const QuizzesPage = ({ user, onLogout }: QuizzesPageProps) => {
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
   const [answers, setAnswers] = useState<Record<string, string[]>>({});
   const [result, setResult] = useState<{ score: number; total: number; percentage: number } | null>(null);
+  const [questionIndex, setQuestionIndex] = useState(0);
 
   useEffect(() => {
     apiFetch<{ quizzes: QuizItem[] }>('/quizzes').then((res) => setQuizzes(res.quizzes)).catch(console.error);
@@ -33,7 +34,7 @@ const QuizzesPage = ({ user, onLogout }: QuizzesPageProps) => {
 
   useEffect(() => {
     if (!selectedQuiz) return;
-    setQuestions(JSON.parse(selectedQuiz.questions || '[]'));
+    setQuestions(JSON.parse(selectedQuiz.questions || '[]')); setQuestionIndex(0); setAnswers({}); setResult(null);
   }, [selectedQuiz]);
 
   const handleAnswer = (questionId: string, option: string) => {
@@ -71,10 +72,11 @@ const QuizzesPage = ({ user, onLogout }: QuizzesPageProps) => {
           {selectedQuiz ? (
             <>
               <h3 className="text-2xl font-bold text-slate-900">{selectedQuiz.title}</h3>
+              <div className="mt-3 text-sm text-slate-500">Question {questions.length ? questionIndex + 1 : 0} / {questions.length}</div>
               <div className="mt-5 space-y-5">
-                {questions.map((question, index) => (
+                {questions.slice(questionIndex, questionIndex + 1).map((question) => (
                   <div key={question.id} className="rounded-2xl border border-slate-200 p-4">
-                    <div className="mb-3 font-semibold text-slate-800">{index + 1}. {question.question}</div>
+                    <div className="mb-3 font-semibold text-slate-800">{questionIndex + 1}. {question.question}</div>
                     <div className="space-y-2">
                       {question.options.map((option) => (
                         <label key={option} className="flex items-center gap-3 rounded-xl bg-slate-50 p-2 text-sm text-slate-700">
@@ -90,8 +92,8 @@ const QuizzesPage = ({ user, onLogout }: QuizzesPageProps) => {
                   </div>
                 ))}
               </div>
-              <div className="mt-6 flex gap-3">
-                <button className="primary-btn" onClick={submitQuiz}>Valider le QCM</button>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <button className="secondary-btn" disabled={questionIndex === 0} onClick={() => setQuestionIndex((index) => Math.max(0, index - 1))}>Précédente</button>{questionIndex < questions.length - 1 ? <button className="primary-btn" onClick={() => setQuestionIndex((index) => index + 1)}>Suivante</button> : <button className="primary-btn" onClick={submitQuiz}>Terminer le QCM</button>}
               </div>
               {result && (
                 <div className="mt-6 rounded-2xl bg-emerald-50 p-4 text-emerald-800">
@@ -100,7 +102,7 @@ const QuizzesPage = ({ user, onLogout }: QuizzesPageProps) => {
               )}
             </>
           ) : (
-            <div className="text-slate-500">Sélectionnez un quiz pour commencer.</div>
+            <div className="text-slate-500">{quizzes.length ? 'Sélectionnez un quiz pour commencer.' : '❓ Aucun QCM disponible pour le moment.'}</div>
           )}
         </div>
       </div>

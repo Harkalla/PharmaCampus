@@ -12,7 +12,7 @@ type SearchResult = {
 type SearchPageProps = { user: User; onLogout: () => void; };
 
 const SearchPage = ({ user, onLogout }: SearchPageProps) => {
-  const [query, setQuery] = useState('pharmacologie');
+  const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
 
   const handleSearch = async () => {
@@ -29,7 +29,7 @@ const SearchPage = ({ user, onLogout }: SearchPageProps) => {
         </div>
 
         <div className="space-y-3">
-          {results.length === 0 ? <div className="text-slate-500">Aucun résultat pour le moment.</div> : results.map((result, index) => (
+          {results.length === 0 ? <div className="text-slate-500">🔎 {query ? 'Aucun résultat trouvé pour votre recherche.' : 'Recherchez un cours, un examen, un QCM, un médicament ou une publication.'}</div> : results.map((result, index) => (
             <a key={`${result.type}-${index}`} href={result.link} className="block rounded-2xl border border-slate-200 p-3 hover:border-brand-300">
               <div className="text-xs uppercase tracking-[0.2em] text-brand-700">{result.type}</div>
               <div className="mt-1 font-semibold text-slate-800">{result.label}</div>

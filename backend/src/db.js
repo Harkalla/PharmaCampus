@@ -135,6 +135,7 @@ function initializeDatabase() {
       id TEXT PRIMARY KEY,
       room TEXT,
       user_id TEXT,
+      recipient_id TEXT,
       content TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
@@ -187,6 +188,9 @@ function initializeDatabase() {
   });
 
   try { db.exec('ALTER TABLE notifications ADD COLUMN is_read INTEGER DEFAULT 0'); } catch (error) {
+    if (!String(error.message).includes('duplicate column name')) throw error;
+  }
+  try { db.exec('ALTER TABLE messages ADD COLUMN recipient_id TEXT'); } catch (error) {
     if (!String(error.message).includes('duplicate column name')) throw error;
   }
 

@@ -18,6 +18,9 @@ type ExamsPageProps = { user: User; onLogout: () => void; };
 
 const ExamsPage = ({ user, onLogout }: ExamsPageProps) => {
   const [exams, setExams] = useState<Exam[]>([]);
+  const [query, setQuery] = useState('');
+  const [semester, setSemester] = useState('');
+  const [year, setYear] = useState('');
 
   useEffect(() => {
     fetchExams().then(setExams).catch(console.error);
@@ -25,8 +28,9 @@ const ExamsPage = ({ user, onLogout }: ExamsPageProps) => {
 
   return (
     <Layout user={user} title="Examens" onLogout={onLogout}>
+      <div className="card mb-6 grid gap-3 p-4 sm:grid-cols-3"><input className="input" placeholder="Rechercher un examen" value={query} onChange={(event) => setQuery(event.target.value)} /><select className="input" value={semester} onChange={(event) => setSemester(event.target.value)}><option value="">Tous les niveaux</option>{Array.from({ length: 10 }, (_, index) => <option key={index}>S{index + 1}</option>)}</select><input className="input" placeholder="Année" value={year} onChange={(event) => setYear(event.target.value)} /></div>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {exams.map((exam) => (
+        {exams.filter((exam) => (!query || exam.title.toLowerCase().includes(query.toLowerCase())) && (!semester || exam.semester === semester) && (!year || String(exam.year) === year)).map((exam) => (
           <div key={exam.id} className="card p-5">
             <div className="mb-3 flex items-center justify-between">
               <span className="badge bg-brand-100 text-brand-700">{exam.semester || 'S5'}</span>
@@ -40,6 +44,7 @@ const ExamsPage = ({ user, onLogout }: ExamsPageProps) => {
             </div>
           </div>
         ))}
+        {!exams.filter((exam) => (!query || exam.title.toLowerCase().includes(query.toLowerCase())) && (!semester || exam.semester === semester) && (!year || String(exam.year) === year)).length && <p className="text-slate-500">📝 Aucun examen disponible pour le moment.</p>}
       </div>
     </Layout>
   );

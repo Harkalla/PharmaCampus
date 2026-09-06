@@ -148,6 +148,15 @@ create table if not exists public.comments (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.messages (
+  id uuid primary key default uuid_generate_v4(),
+  room text not null default 'direct',
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  recipient_id uuid references public.profiles(id) on delete cascade,
+  content text not null,
+  created_at timestamptz not null default now()
+);
+
 create table if not exists public.notifications (
   id uuid primary key default uuid_generate_v4(),
   user_id uuid not null references public.profiles(id) on delete cascade,
@@ -199,6 +208,7 @@ alter table public.quiz_results enable row level security;
 alter table public.medicines enable row level security;
 alter table public.posts enable row level security;
 alter table public.comments enable row level security;
+alter table public.messages enable row level security;
 alter table public.notifications enable row level security;
 alter table public.reports enable row level security;
 alter table public.suggestions enable row level security;
@@ -345,6 +355,13 @@ for select using (true);
 drop policy if exists "Users can create comments" on public.comments;
 create policy "Users can create comments" on public.comments
 for insert with check (auth.uid() = user_id);
+
+drop policy if exists "Users can read own messages" on public.messages;
+create policy "Users can read own messages" on public.messages
+for select using (auth.uid() = user_id or auth.uid() = recipient_id);
+drop policy if exists "Users can send messages" on public.messages;
+create policy "Users can send messages" on public.messages
+for insert with check (auth.uid() = user_id and (recipient_id is null or recipient_id <> auth.uid()));
 
 drop policy if exists "Anyone can read notifications" on public.notifications;
 create policy "Anyone can read notifications" on public.notifications

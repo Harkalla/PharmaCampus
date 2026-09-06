@@ -11,6 +11,8 @@ const CommunityPage = ({ user, onLogout }: CommunityPageProps) => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [category, setCategory] = useState('Pharmacologie');
+  const [query, setQuery] = useState('');
+  const [answerDrafts, setAnswerDrafts] = useState<Record<string, string>>({});
 
   const loadQuestions = async () => {
     try {
@@ -25,9 +27,18 @@ const CommunityPage = ({ user, onLogout }: CommunityPageProps) => {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (!title.trim() || !content.trim()) return;
     await createQuestion({ title, content, category, subjectId: 'M1' });
     setTitle('');
     setContent('');
+    loadQuestions();
+  };
+
+  const submitAnswer = async (questionId: string) => {
+    const answer = answerDrafts[questionId]?.trim();
+    if (!answer) return;
+    await fetch(`http://localhost:4000/api/questions/${questionId}/answers`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('pharmacampus_token') || ''}` }, body: JSON.stringify({ content: answer }) });
+    setAnswerDrafts((current) => ({ ...current, [questionId]: '' }));
     loadQuestions();
   };
 
@@ -49,7 +60,8 @@ const CommunityPage = ({ user, onLogout }: CommunityPageProps) => {
         </div>
 
         <div className="space-y-4">
-          {questions.map((question) => (
+          <input className="input" placeholder="Rechercher une publication..." value={query} onChange={(event) => setQuery(event.target.value)} />
+          {questions.filter((question) => `${question.title} ${question.content} ${question.category}`.toLowerCase().includes(query.toLowerCase())).map((question) => (
             <div key={question.id} className="card p-5">
               <div className="flex items-center gap-3">
                 <img src={question.photo_url || 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80'} alt="user" className="h-10 w-10 rounded-full object-cover" />
@@ -67,8 +79,10 @@ const CommunityPage = ({ user, onLogout }: CommunityPageProps) => {
                   </div>
                 ))}
               </div>
+              <div className="mt-4 flex gap-2"><input className="input" placeholder="Répondre..." value={answerDrafts[question.id] || ''} onChange={(event) => setAnswerDrafts((current) => ({ ...current, [question.id]: event.target.value }))} /><button className="secondary-btn" onClick={() => submitAnswer(question.id)}>Répondre</button></div>
             </div>
           ))}
+          {!questions.filter((question) => `${question.title} ${question.content} ${question.category}`.toLowerCase().includes(query.toLowerCase())).length && <div className="card p-6 text-slate-500">👥 La communauté est encore vide. Soyez le premier à publier !</div>}
         </div>
       </div>
     </Layout>

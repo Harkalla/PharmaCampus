@@ -252,6 +252,16 @@ app.post('/api/questions', authMiddleware, (req, res) => {
   res.status(201).json({ message: 'Question publiée avec succès.' });
 });
 
+app.post('/api/questions/:id/answers', authMiddleware, (req, res) => {
+  const { content } = req.body;
+  const question = db.prepare('SELECT * FROM questions WHERE id = ?').get(req.params.id);
+  if (!question) return res.status(404).json({ error: 'Discussion introuvable.' });
+  if (!content?.trim()) return res.status(400).json({ error: 'Réponse requise.' });
+  db.prepare('INSERT INTO answers (id, question_id, user_id, content) VALUES (?, ?, ?, ?)').run(uuidv4(), question.id, req.user.id, content.trim());
+  if (question.user_id !== req.user.id) db.prepare('INSERT INTO notifications (id, user_id, title, message, link) VALUES (?, ?, ?, ?, ?)').run(uuidv4(), question.user_id, 'Nouvelle réponse', 'Votre publication a reçu une réponse.', '/entraide');
+  res.status(201).json({ message: 'Réponse publiée.' });
+});
+
 app.get('/api/medicines', (req, res) => {
   const { q } = req.query;
   let rows = db.prepare('SELECT * FROM medicines ORDER BY name').all();
@@ -381,6 +391,27 @@ app.get('/api/search', (req, res) => {
     }
   });
 
+  const courses = db.prepare('SELECT * FROM courses').all();
+  courses.forEach((item) => {
+    if (`${item.title} ${item.description} ${item.semester} ${item.level}`.toLowerCase().includes(query)) {
+      results.push({ type: 'Cours', label: item.title, link: `/matiere/${item.subject_id}` });
+    }
+  });
+
+  const exams = db.prepare('SELECT * FROM exams').all();
+  exams.forEach((item) => {
+    if (`${item.title} ${item.semester} ${item.year}`.toLowerCase().includes(query)) {
+      results.push({ type: 'Examen', label: item.title, link: '/examens' });
+    }
+  });
+
+  const quizzes = db.prepare('SELECT * FROM quizzes').all();
+  quizzes.forEach((item) => {
+    if (`${item.title} ${item.semester}`.toLowerCase().includes(query)) {
+      results.push({ type: 'QCM', label: item.title, link: '/qcm' });
+    }
+  });
+
   const documents = db.prepare("SELECT * FROM documents WHERE COALESCE(status, 'published') = 'published'").all();
   documents.forEach((item) => {
     if (`${item.title} ${item.description}`.toLowerCase().includes(query)) {
@@ -405,15 +436,18 @@ app.get('/api/search', (req, res) => {
   res.json({ results: results.slice(0, 20) });
 });
 
-app.get('/api/messages', (req, res) => {
-  const rows = db.prepare('SELECT * FROM messages ORDER BY created_at ASC').all();
+app.get('/api/messages', authMiddleware, (req, res) => {
+  const rows = db.prepare('SELECT m.*, u.first_name, u.last_name, u.photo_url FROM messages m LEFT JOIN users u ON u.id = m.user_id WHERE m.user_id = ? OR m.recipient_id = ? ORDER BY m.created_at ASC').all(req.user.id, req.user.id);
   res.json({ messages: rows });
 });
 
 app.post('/api/messages', authMiddleware, (req, res) => {
-  const { room, content } = req.body;
+  const { room, content, recipientId } = req.body;
+  if (!content?.trim()) return res.status(400).json({ error: 'Message requis.' });
+  if (recipientId && !db.prepare('SELECT id FROM users WHERE id = ?').get(recipientId)) return res.status(404).json({ error: 'Destinataire introuvable.' });
   const id = uuidv4();
-  db.prepare('INSERT INTO messages (id, room, user_id, content) VALUES (?, ?, ?, ?)').run(id, room || 'general', req.user.id, content);
+  db.prepare('INSERT INTO messages (id, room, user_id, recipient_id, content) VALUES (?, ?, ?, ?, ?)').run(id, room || 'direct', req.user.id, recipientId || null, content.trim());
+  if (recipientId) db.prepare('INSERT INTO notifications (id, user_id, title, message, link) VALUES (?, ?, ?, ?, ?)').run(uuidv4(), recipientId, 'Nouveau message', 'Vous avez reçu un nouveau message.', '/messages');
   res.status(201).json({ message: 'Message envoyé.' });
 });
 
