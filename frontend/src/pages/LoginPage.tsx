@@ -10,13 +10,16 @@ type LoginPageProps = {
 const LoginPage = ({ onLogin }: LoginPageProps) => {
   const [email, setEmail] = useState('student@pharmacampus.com');
   const [password, setPassword] = useState('student123');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    setError('');
     try {
       const response = await signInWithSupabase(email, password);
-      onLogin(response.user as User, response.token);
+      if (response.user) onLogin(response.user, response.token);
+      else setError('Impossible de récupérer votre profil.');
     } catch (err) {
       setError((err as Error).message);
     }
@@ -38,13 +41,20 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-300">Mot de passe</label>
-            <input type="password" className="input" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="••••••••" />
+            <div className="relative">
+              <input type={showPassword ? 'text' : 'password'} className="input pr-24" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Mot de passe" required />
+              <button type="button" className="absolute inset-y-0 right-3 text-sm font-semibold text-brand-700" onClick={() => setShowPassword((visible) => !visible)} aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}>
+                {showPassword ? 'Masquer' : 'Afficher'}
+              </button>
+            </div>
           </div>
 
           {error && <div className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
 
           <button className="primary-btn w-full" type="submit">Se connecter</button>
         </form>
+
+        <button type="button" className="mt-4 block w-full text-center text-sm font-semibold text-brand-300" onClick={() => setError('La récupération du mot de passe doit être configurée dans Supabase ou par l’administrateur.')}>Mot de passe oublié ?</button>
 
         <div className="mt-5 text-center text-sm text-slate-400">
           Pas encore de compte ? <Link to="/register" className="font-semibold text-brand-300">Créer un compte</Link>

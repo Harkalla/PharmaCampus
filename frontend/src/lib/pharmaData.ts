@@ -33,7 +33,7 @@ export async function fetchSubjectById(subjectId: string) {
 
 export async function fetchDocuments(query?: string): Promise<DocumentItem[]> {
   if (supabase) {
-    let q = supabase.from('documents').select('*');
+    let q = supabase.from('documents').select('*').eq('status', 'published');
     if (query) q = q.or(`title.ilike.%${query}%,description.ilike.%${query}%`);
     const { data, error } = await q.order('created_at', { ascending: false });
     if (!error && data) return data as DocumentItem[];

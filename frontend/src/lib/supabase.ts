@@ -1,4 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
+import { apiFetch } from './api';
+import { User } from '../types';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -10,6 +12,8 @@ export const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, s
     detectSessionInUrl: true
   }
 }) : null;
+
+type AuthResponse = { user: User | null; token: string };
 
 export async function signUpWithSupabase(payload: {
   email: string;
@@ -23,9 +27,13 @@ export async function signUpWithSupabase(payload: {
   semester?: string;
   bio?: string;
   photoUrl?: string;
-}) {
+}): Promise<AuthResponse> {
+  if (!/^[A-Za-z0-9]{6,8}$/.test(payload.password) || !/[A-Za-z]/.test(payload.password) || !/[0-9]/.test(payload.password)) {
+    throw new Error('Le mot de passe doit contenir 6 à 8 caractères, uniquement des lettres et chiffres, avec au moins une lettre et un chiffre.');
+  }
+
   if (!supabase) {
-    throw new Error('Supabase n’est pas configuré. Ajoutez les variables VITE_SUPABASE_URL et VITE_SUPABASE_PUBLISHABLE_KEY.');
+    return apiFetch<AuthResponse>('/auth/register', { method: 'POST', body: JSON.stringify(payload) });
   }
 
   const { data, error } = await supabase.auth.signUp({
@@ -69,9 +77,9 @@ export async function signUpWithSupabase(payload: {
   };
 }
 
-export async function signInWithSupabase(email: string, password: string) {
+export async function signInWithSupabase(email: string, password: string): Promise<AuthResponse> {
   if (!supabase) {
-    throw new Error('Supabase n’est pas configuré. Ajoutez les variables VITE_SUPABASE_URL et VITE_SUPABASE_PUBLISHABLE_KEY.');
+    return apiFetch<AuthResponse>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
   }
 
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
@@ -106,7 +114,15 @@ export async function signInWithSupabase(email: string, password: string) {
 
 export async function getSupabaseSessionUser() {
   if (!supabase) {
-    return null;
+    const token = localStorage.getItem('pharmacampus_token');
+    if (!token) return null;
+    try {
+      const response = await apiFetch<{ user: User }>('/auth/me');
+      return { ...response.user, token };
+    } catch {
+      localStorage.removeItem('pharmacampus_token');
+      return null;
+    }
   }
 
   const { data: { session }, error } = await supabase.auth.getSession();

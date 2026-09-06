@@ -69,6 +69,9 @@ app.post('/api/auth/register', async (req, res) => {
   if (!firstName || !lastName || !email || !password) {
     return res.status(400).json({ error: 'Informations de base manquantes.' });
   }
+  if (!/^[A-Za-z0-9]{6,8}$/.test(password) || !/[A-Za-z]/.test(password) || !/[0-9]/.test(password)) {
+    return res.status(400).json({ error: 'Le mot de passe doit contenir 6 à 8 caractères, uniquement des lettres et chiffres, avec au moins une lettre et un chiffre.' });
+  }
 
   const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email.toLowerCase());
   if (existing) {
@@ -142,7 +145,7 @@ app.get('/api/courses', (req, res) => {
 
 app.get('/api/documents', (req, res) => {
   const { q, subjectId } = req.query;
-  let rows = db.prepare('SELECT * FROM documents ORDER BY created_at DESC').all();
+  let rows = db.prepare("SELECT * FROM documents WHERE COALESCE(status, 'published') = 'published' ORDER BY created_at DESC").all();
   if (subjectId) rows = rows.filter((row) => row.subject_id === subjectId);
   if (q) rows = rows.filter((row) => `${row.title} ${row.description}`.toLowerCase().includes(String(q).toLowerCase()));
   res.json({ documents: rows });
@@ -256,13 +259,57 @@ app.get('/api/dashboard', authMiddleware, (req, res) => {
 app.get('/api/admin/summary', authMiddleware, adminMiddleware, (req, res) => {
   const counts = {
     users: db.prepare('SELECT COUNT(*) as count FROM users').get().count,
+    newUsers: db.prepare("SELECT COUNT(*) as count FROM users WHERE created_at >= datetime('now', '-30 days')").get().count,
     subjects: db.prepare('SELECT COUNT(*) as count FROM subjects').get().count,
     documents: db.prepare('SELECT COUNT(*) as count FROM documents').get().count,
+    publishedDocuments: db.prepare("SELECT COUNT(*) as count FROM documents WHERE COALESCE(status, 'published') = 'published'").get().count,
+    pendingDocuments: db.prepare("SELECT COUNT(*) as count FROM documents WHERE status = 'pending'").get().count,
+    refusedDocuments: db.prepare("SELECT COUNT(*) as count FROM documents WHERE status = 'refused'").get().count,
+    courses: db.prepare('SELECT COUNT(*) as count FROM courses').get().count,
+    quizzes: db.prepare('SELECT COUNT(*) as count FROM quizzes').get().count,
     exams: db.prepare('SELECT COUNT(*) as count FROM exams').get().count,
     suggestions: db.prepare('SELECT COUNT(*) as count FROM suggestions').get().count,
     reports: db.prepare('SELECT COUNT(*) as count FROM reports').get().count
   };
   res.json({ counts });
+});
+
+app.post('/api/documents/contribute', authMiddleware, upload.single('file'), (req, res) => {
+  const { title, description, subjectId, semester, type, year } = req.body;
+  if (!title || !subjectId || !req.file) return res.status(400).json({ error: 'Titre, matière et fichier requis.' });
+  const id = uuidv4();
+  const filePath = `/uploads/${req.file.filename}`;
+  db.prepare(`INSERT INTO documents (id, title, description, subject_id, semester, type, author, file_name, file_path, status, submitted_by, year)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)`)
+    .run(id, title, description || '', subjectId, semester || 'S5', type || 'PDF', `${req.user.first_name} ${req.user.last_name}`, req.file.originalname, filePath, req.user.id, year || null);
+  db.prepare('INSERT INTO notifications (id, user_id, title, message, link) VALUES (?, ?, ?, ?, ?)').run(uuidv4(), req.user.id, 'Document envoyé', 'Votre document est en attente de validation.', '/contributions');
+  res.status(201).json({ message: 'Document envoyé pour validation.', id });
+});
+
+app.get('/api/documents/mine', authMiddleware, (req, res) => {
+  const rows = db.prepare('SELECT * FROM documents WHERE submitted_by = ? ORDER BY created_at DESC').all(req.user.id);
+  res.json({ documents: rows });
+});
+
+app.get('/api/admin/documents/pending', authMiddleware, adminMiddleware, (req, res) => {
+  const rows = db.prepare(`SELECT d.*, u.first_name, u.last_name, u.email
+    FROM documents d LEFT JOIN users u ON u.id = d.submitted_by
+    WHERE d.status = 'pending' ORDER BY d.created_at ASC`).all();
+  res.json({ documents: rows });
+});
+
+app.patch('/api/admin/documents/:id/status', authMiddleware, adminMiddleware, (req, res) => {
+  const { status, rejectionReason } = req.body;
+  if (!['published', 'refused', 'archived'].includes(status)) return res.status(400).json({ error: 'Statut invalide.' });
+  if (status === 'refused' && !rejectionReason) return res.status(400).json({ error: 'Un motif est obligatoire pour refuser un document.' });
+  const document = db.prepare('SELECT * FROM documents WHERE id = ?').get(req.params.id);
+  if (!document) return res.status(404).json({ error: 'Document introuvable.' });
+  db.prepare('UPDATE documents SET status = ?, reviewed_by = ?, reviewed_at = CURRENT_TIMESTAMP, rejection_reason = ? WHERE id = ?').run(status, req.user.id, rejectionReason || null, req.params.id);
+  if (document.submitted_by) {
+    const message = status === 'published' ? 'Votre document a été validé et publié.' : status === 'refused' ? `Votre document a été refusé : ${rejectionReason}` : 'Votre document a été archivé.';
+    db.prepare('INSERT INTO notifications (id, user_id, title, message, link) VALUES (?, ?, ?, ?, ?)').run(uuidv4(), document.submitted_by, 'Mise à jour de votre document', message, '/contributions');
+  }
+  res.json({ message: 'Statut du document mis à jour.' });
 });
 
 app.get('/api/search', (req, res) => {
@@ -323,15 +370,15 @@ app.post('/api/admin/subject', authMiddleware, adminMiddleware, (req, res) => {
 });
 
 app.post('/api/admin/documents', authMiddleware, adminMiddleware, upload.single('file'), (req, res) => {
-  const { title, description, subjectId, semester, type, author } = req.body;
+  const { title, description, subjectId, semester, type, author, year, tags } = req.body;
   if (!title || !subjectId) return res.status(400).json({ error: 'Titre et matière requis.' });
 
   const fileName = req.file ? req.file.originalname : 'document.pdf';
   const filePath = req.file ? `/uploads/${req.file.filename}` : '/uploads/sample.pdf';
 
   const id = uuidv4();
-  db.prepare('INSERT INTO documents (id, title, description, subject_id, semester, type, author, file_name, file_path) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
-    .run(id, title, description || '', subjectId, semester || 'S5', type || 'PDF', author || 'Admin', fileName, filePath);
+  db.prepare('INSERT INTO documents (id, title, description, subject_id, semester, type, author, file_name, file_path, status, submitted_by, year, tags) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, \'published\', ?, ?, ?)')
+    .run(id, title, description || '', subjectId, semester || 'S5', type || 'PDF', author || 'Admin', fileName, filePath, req.user.id, year || null, tags || '');
 
   res.status(201).json({ message: 'Document ajouté.' });
 });

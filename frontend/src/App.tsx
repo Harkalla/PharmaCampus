@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
@@ -16,10 +17,12 @@ import ProfilePage from './pages/ProfilePage';
 import SearchPage from './pages/SearchPage';
 import AdminPage from './pages/AdminPage';
 import SettingsPage from './pages/SettingsPage';
+import ContributionsPage from './pages/ContributionsPage';
 import { getSupabaseSessionUser, supabase } from './lib/supabase';
 import { User } from './types';
 
 const App = () => {
+  const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -45,6 +48,7 @@ const App = () => {
       localStorage.setItem('pharmacampus_token', token);
     }
     setUser(currentUser);
+    navigate(currentUser.role === 'admin' ? '/admin' : '/dashboard', { replace: true });
   };
 
   const handleLogout = async () => {
@@ -64,6 +68,7 @@ const App = () => {
       <Route path="/niveaux/:semester" element={user ? <SubjectsPage user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
       <Route path="/matiere/:subjectId" element={user ? <CoursePage user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
       <Route path="/documents" element={user ? <DocumentsPage user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
+      <Route path="/contributions" element={user ? <ContributionsPage user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
       <Route path="/examens" element={user ? <ExamsPage user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
       <Route path="/qcm" element={user ? <QuizzesPage user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
       <Route path="/medicaments" element={user ? <MedicamentsPage user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
@@ -71,7 +76,7 @@ const App = () => {
       <Route path="/messages" element={user ? <MessagesPage user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
       <Route path="/profil" element={user ? <ProfilePage user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
       <Route path="/recherche" element={user ? <SearchPage user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
-      <Route path="/admin" element={user ? <AdminPage user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
+      <Route path="/admin" element={user?.role === 'admin' ? <AdminPage user={user} onLogout={handleLogout} /> : <Navigate to={user ? '/dashboard' : '/login'} replace />} />
       <Route path="/settings" element={user ? <SettingsPage user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

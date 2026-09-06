@@ -56,6 +56,14 @@ function initializeDatabase() {
       author TEXT,
       file_name TEXT,
       file_path TEXT,
+      status TEXT DEFAULT 'published',
+      submitted_by TEXT,
+      year INTEGER,
+      tags TEXT,
+      cover_image TEXT,
+      reviewed_by TEXT,
+      reviewed_at TEXT,
+      rejection_reason TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
 
@@ -155,6 +163,17 @@ function initializeDatabase() {
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
   `);
+
+  const documentColumns = [
+    ['status', "TEXT DEFAULT 'published'"], ['submitted_by', 'TEXT'], ['year', 'INTEGER'],
+    ['tags', 'TEXT'], ['cover_image', 'TEXT'], ['reviewed_by', 'TEXT'],
+    ['reviewed_at', 'TEXT'], ['rejection_reason', 'TEXT']
+  ];
+  documentColumns.forEach(([name, definition]) => {
+    try { db.exec(`ALTER TABLE documents ADD COLUMN ${name} ${definition}`); } catch (error) {
+      if (!String(error.message).includes('duplicate column name')) throw error;
+    }
+  });
 
   const existingUsers = db.prepare('SELECT COUNT(*) as count FROM users').get();
   if (existingUsers.count === 0) {

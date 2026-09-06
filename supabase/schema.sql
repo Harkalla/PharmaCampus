@@ -52,6 +52,14 @@ create table if not exists public.documents (
   author text,
   file_name text,
   file_path text,
+  status text not null default 'published' check (status in ('draft','pending','published','refused','archived')),
+  submitted_by uuid references public.profiles(id) on delete set null,
+  year integer,
+  tags text,
+  cover_image text,
+  reviewed_by uuid references public.profiles(id) on delete set null,
+  reviewed_at timestamptz,
+  rejection_reason text,
   created_at timestamptz not null default now()
 );
 

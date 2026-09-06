@@ -71,7 +71,8 @@ const Layout = ({ user, title, children, onLogout }: LayoutProps) => {
           </div>
           <div className="flex flex-wrap gap-2">
             <Link to="/niveaux/S5" className="secondary-btn">Niveaux S1-S10</Link>
-            <Link to="/admin" className="primary-btn">Espace admin</Link>
+            {user.role !== 'admin' && <Link to="/contributions" className="secondary-btn">Mes contributions</Link>}
+            {user.role === 'admin' && <Link to="/admin" className="primary-btn">Espace admin</Link>}
           </div>
         </div>
 

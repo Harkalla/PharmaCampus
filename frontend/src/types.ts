@@ -40,6 +40,10 @@ export type DocumentItem = {
   author?: string;
   file_name?: string;
   file_path?: string;
+  status?: string;
+  submitted_by?: string;
+  year?: number;
+  rejection_reason?: string;
   created_at?: string;
 };
 

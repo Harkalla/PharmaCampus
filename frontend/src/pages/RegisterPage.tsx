@@ -8,11 +8,14 @@ type RegisterPageProps = {
 };
 
 const RegisterPage = ({ onLogin }: RegisterPageProps) => {
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
   const [form, setForm] = useState({
     firstName: 'Amina',
     lastName: 'Khalid',
     email: 'amina@test.com',
     password: 'test1234',
+    passwordConfirmation: 'test1234',
     country: 'Maroc',
     city: 'Casablanca',
     university: 'Université Hassan II',
@@ -27,6 +30,16 @@ const RegisterPage = ({ onLogin }: RegisterPageProps) => {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (!/^[A-Za-z0-9]{6,8}$/.test(form.password) || !/[A-Za-z]/.test(form.password) || !/[0-9]/.test(form.password)) {
+      setError('Le mot de passe doit contenir 6 à 8 caractères, uniquement des lettres et chiffres, avec au moins une lettre et un chiffre.');
+      return;
+    }
+    if (form.password !== form.passwordConfirmation) {
+      setError('Les deux mots de passe ne correspondent pas.');
+      return;
+    }
+
+    setError('');
     try {
       const response = await signUpWithSupabase({
         email: form.email,
@@ -41,7 +54,8 @@ const RegisterPage = ({ onLogin }: RegisterPageProps) => {
         bio: form.bio,
         photoUrl: form.photoUrl
       });
-      onLogin(response.user as User, response.token);
+      if (response.user) onLogin(response.user, response.token);
+      else setError('Compte créé. Vérifiez votre adresse email avant de vous connecter.');
     } catch (err) {
       setError((err as Error).message);
     }
@@ -98,7 +112,46 @@ const RegisterPage = ({ onLogin }: RegisterPageProps) => {
           </div>
           <div className="md:col-span-2">
             <label className="mb-1 block text-sm font-medium text-slate-300">Mot de passe</label>
-            <input type="password" className="input" value={form.password} onChange={(e) => handleChange('password', e.target.value)} />
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                className="input pr-24"
+                value={form.password}
+                onChange={(e) => handleChange('password', e.target.value)}
+                minLength={6}
+                maxLength={8}
+                pattern="(?=.*[A-Za-z])(?=.*[0-9])[A-Za-z0-9]{6,8}"
+                title="6 à 8 caractères, avec au moins une lettre et un chiffre"
+                required
+              />
+              <button
+                type="button"
+                className="absolute inset-y-0 right-3 text-sm font-semibold text-brand-700"
+                onClick={() => setShowPassword((visible) => !visible)}
+                aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+              >
+                {showPassword ? 'Masquer' : 'Afficher'}
+              </button>
+            </div>
+            <p className="mt-1 text-xs text-slate-400">6 à 8 caractères, avec au moins une lettre.</p>
+          </div>
+          <div className="md:col-span-2">
+            <label className="mb-1 block text-sm font-medium text-slate-300">Confirmation du mot de passe</label>
+            <div className="relative">
+              <input
+                type={showConfirmation ? 'text' : 'password'}
+                className="input pr-24"
+                value={form.passwordConfirmation}
+                onChange={(e) => handleChange('passwordConfirmation', e.target.value)}
+                minLength={6}
+                maxLength={8}
+                required
+              />
+              <button type="button" className="absolute inset-y-0 right-3 text-sm font-semibold text-brand-700" onClick={() => setShowConfirmation((visible) => !visible)} aria-label={showConfirmation ? 'Masquer la confirmation' : 'Afficher la confirmation'}>
+                {showConfirmation ? 'Masquer' : 'Afficher'}
+              </button>
+            </div>
+            {form.passwordConfirmation && form.password !== form.passwordConfirmation && <p className="mt-1 text-xs text-red-300">Les mots de passe ne correspondent pas.</p>}
           </div>
           <div className="md:col-span-2">
             <label className="mb-1 block text-sm font-medium text-slate-300">Photo de profil (facultative)</label>
