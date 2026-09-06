@@ -145,6 +145,7 @@ function initializeDatabase() {
       title TEXT,
       message TEXT,
       link TEXT,
+      is_read INTEGER DEFAULT 0,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
 
@@ -175,6 +176,10 @@ function initializeDatabase() {
       if (!String(error.message).includes('duplicate column name')) throw error;
     }
   });
+
+  try { db.exec('ALTER TABLE notifications ADD COLUMN is_read INTEGER DEFAULT 0'); } catch (error) {
+    if (!String(error.message).includes('duplicate column name')) throw error;
+  }
 
   const existingUsers = db.prepare('SELECT COUNT(*) as count FROM users').get();
   if (existingUsers.count === 0) {

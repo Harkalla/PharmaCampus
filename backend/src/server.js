@@ -25,6 +25,9 @@ const storage = multer.diskStorage({
   }
 });
 const upload = multer({ storage });
+const profileUpload = multer({ storage, limits: { fileSize: 2 * 1024 * 1024 }, fileFilter: (req, file, cb) => {
+  cb(null, ['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype));
+} });
 
 function signToken(user) {
   return jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
@@ -104,6 +107,26 @@ app.post('/api/auth/login', async (req, res) => {
 
 app.get('/api/auth/me', authMiddleware, (req, res) => {
   res.json({ user: sanitizeUser(req.user) });
+});
+
+app.patch('/api/profile', authMiddleware, profileUpload.single('photo'), (req, res) => {
+  const { firstName, lastName, country, city, university, level, semester, bio, removePhoto } = req.body;
+  if (!firstName || !lastName) return res.status(400).json({ error: 'Nom et prénom requis.' });
+  const photoUrl = removePhoto === 'true' ? '' : req.file ? `/uploads/${req.file.filename}` : req.user.photo_url || '';
+  db.prepare('UPDATE users SET first_name = ?, last_name = ?, country = ?, city = ?, university = ?, level = ?, semester = ?, bio = ?, photo_url = ? WHERE id = ?')
+    .run(firstName, lastName, country || '', city || '', university || '', level || '', semester || '', bio || '', photoUrl, req.user.id);
+  res.json({ user: sanitizeUser(db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id)), message: 'Profil mis à jour avec succès.' });
+});
+
+app.post('/api/profile/password', authMiddleware, async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  if (!currentPassword || !/^[A-Za-z0-9]{6,8}$/.test(newPassword || '') || !/[A-Za-z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
+    return res.status(400).json({ error: 'Le nouveau mot de passe doit contenir 6 à 8 caractères, uniquement des lettres et chiffres, avec une lettre et un chiffre.' });
+  }
+  if (!await bcrypt.compare(currentPassword, req.user.password_hash)) return res.status(400).json({ error: 'Mot de passe actuel incorrect.' });
+  const passwordHash = await bcrypt.hash(newPassword, 10);
+  db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(passwordHash, req.user.id);
+  res.json({ message: 'Mot de passe modifié avec succès.' });
 });
 
 app.get('/api/semesters', (req, res) => {
@@ -220,7 +243,19 @@ app.get('/api/medicines', (req, res) => {
 
 app.get('/api/notifications', authMiddleware, (req, res) => {
   const rows = db.prepare('SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC').all(req.user.id);
-  res.json({ notifications: rows });
+  res.json({ notifications: rows, unread: rows.filter((row) => !row.is_read).length });
+});
+
+app.patch('/api/notifications/read', authMiddleware, (req, res) => {
+  if (req.body.id) db.prepare('UPDATE notifications SET is_read = 1 WHERE id = ? AND user_id = ?').run(req.body.id, req.user.id);
+  else db.prepare('UPDATE notifications SET is_read = 1 WHERE user_id = ?').run(req.user.id);
+  res.json({ message: 'Notification(s) marquée(s) comme lue(s).' });
+});
+
+app.get('/api/profile/activity', authMiddleware, (req, res) => {
+  const contributions = db.prepare("SELECT COUNT(*) as total, SUM(status = 'published') as published, SUM(status = 'pending') as pending, SUM(status = 'refused') as refused FROM documents WHERE submitted_by = ?").get(req.user.id);
+  const quizzes = db.prepare('SELECT COUNT(*) as total, COALESCE(MAX(percentage), 0) as best, COALESCE(AVG(percentage), 0) as average FROM quiz_attempts WHERE user_id = ?').get(req.user.id);
+  res.json({ contributions, quizzes });
 });
 
 app.post('/api/reports', authMiddleware, (req, res) => {

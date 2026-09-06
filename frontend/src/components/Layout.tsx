@@ -1,4 +1,6 @@
-import { Link, NavLink } from 'react-router-dom';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { apiFetch } from '../lib/api';
 import { User } from '../types';
 
 type LayoutProps = {
@@ -25,10 +27,37 @@ const utilityItems = [
 ];
 
 const Layout = ({ user, title, children, onLogout }: LayoutProps) => {
+  const navigate = useNavigate();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [notifications, setNotifications] = useState<Array<{ id: string; title: string; message: string; link?: string; is_read?: number }>>([]);
+
+  useEffect(() => {
+    apiFetch<{ notifications: Array<{ id: string; title: string; message: string; link?: string; is_read?: number }> }>('/notifications')
+      .then((response) => setNotifications(response.notifications)).catch(() => undefined);
+  }, []);
+
+  const markRead = async (id?: string) => {
+    await apiFetch('/notifications/read', { method: 'PATCH', body: JSON.stringify(id ? { id } : {}) });
+    setNotifications((current) => current.map((item) => id && item.id !== id ? item : { ...item, is_read: 1 }));
+  };
+
+  const menuItems = user.role === 'admin'
+    ? [...navItems, ...utilityItems.map((item) => ({ ...item, icon: '•' })), { to: '/admin', label: 'Administration', icon: '♛' }, { to: '/settings', label: 'Paramètres', icon: '⚙' }]
+    : [...navItems, ...utilityItems.map((item) => ({ ...item, icon: '•' })), { to: '/contributions', label: 'Mes contributions', icon: '▱' }, { to: '/settings', label: 'Paramètres', icon: '⚙' }];
+
   return (
     <div className="min-h-screen bg-transparent text-slate-100">
+      {menuOpen && <div className="fixed inset-0 z-50 bg-black/60" onClick={() => setMenuOpen(false)} />}
+      <aside className={`fixed inset-y-0 left-0 z-[60] w-80 max-w-[86vw] border-r border-white/10 bg-[#071412] p-5 shadow-2xl transition-transform ${menuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className="mb-7 flex items-center justify-between"><div className="text-xl font-black text-emerald-50">PharmaCampus</div><button className="secondary-btn px-3" onClick={() => setMenuOpen(false)} aria-label="Fermer le menu">×</button></div>
+        <p className="section-label mb-3">{user.role === 'admin' ? 'Espace administrateur' : 'Espace étudiant'}</p>
+        <nav className="space-y-1">{menuItems.map((item) => <Link key={`${item.to}-${item.label}`} to={item.to} onClick={() => setMenuOpen(false)} className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-slate-300 transition hover:bg-brand-300/10 hover:text-brand-300"><span className="w-6 text-center text-lg">{item.icon}</span>{item.label}</Link>)}</nav>
+        <button className="mt-5 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold text-red-200 hover:bg-red-400/10" onClick={onLogout}><span className="w-6 text-center">↪</span>Déconnexion</button>
+      </aside>
       <header className="sticky top-0 z-30 border-b border-white/10 bg-[#071412]/85 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 lg:px-8">
+          <button className="secondary-btn px-3" onClick={() => setMenuOpen(true)} aria-label="Ouvrir le menu">☰</button>
           <Link to="/dashboard" className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-300 text-sm font-black text-[#06211b] shadow-lg shadow-brand-400/20">P</div>
             <div>
@@ -54,6 +83,10 @@ const Layout = ({ user, title, children, onLogout }: LayoutProps) => {
           </nav>
 
           <div className="flex items-center gap-3">
+            <div className="relative">
+              <button className="secondary-btn relative px-3" onClick={() => setNotificationsOpen((open) => !open)} aria-label="Notifications">♧{notifications.some((item) => !item.is_read) && <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-400 px-1 text-[10px] font-black text-white">{notifications.filter((item) => !item.is_read).length}</span>}</button>
+              {notificationsOpen && <div className="absolute right-0 top-14 z-50 w-80 max-w-[calc(100vw-2rem)] rounded-2xl border border-white/10 bg-[#10231f] p-3 shadow-2xl"><div className="mb-2 flex items-center justify-between"><strong className="text-emerald-50">Notifications</strong><button className="text-xs text-brand-300" onClick={() => markRead()}>Tout lire</button></div>{notifications.slice(0, 6).map((item) => <button key={item.id} className={`block w-full rounded-xl p-3 text-left ${item.is_read ? 'opacity-60' : 'bg-white/5'}`} onClick={() => { markRead(item.id); setNotificationsOpen(false); if (item.link) navigate(item.link); }}><div className="text-sm font-bold text-emerald-50">{item.title}</div><div className="text-xs text-slate-400">{item.message}</div></button>)}{!notifications.length && <p className="p-3 text-sm text-slate-500">Aucune notification.</p>}</div>}
+            </div>
             <Link to="/profil" className="flex min-h-11 items-center gap-2 rounded-full border border-white/10 bg-white/[0.05] px-2 py-1.5 transition hover:border-brand-300/40 hover:bg-white/10">
               <img src={user.photo_url || 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80'} alt={`Profil de ${user.first_name}`} className="h-8 w-8 rounded-full object-cover ring-2 ring-brand-300/30" />
               <span className="hidden text-sm font-semibold text-emerald-50 md:block">{user.first_name}</span>
