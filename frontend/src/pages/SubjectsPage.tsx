@@ -97,7 +97,7 @@ const SubjectsPage = ({ user, onLogout }: SubjectsPageProps) => {
                 <span className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-[#9db4ca] bg-[#f3f7fb] text-[#18344d]"><BookOpen size={25} strokeWidth={1.8} /></span>
               </div>
               <div className="mt-3 text-left text-[1.08rem] font-black leading-tight text-[#142438]">{subject.name}</div>
-              <div className="mt-3 space-y-1 text-left text-xs text-[#526174]"><div>📚 {subject.course_count || 0} cours</div><div>📄 {documentCount} document{documentCount > 1 ? 's' : ''}</div><div>❓ {subject.quiz_count || 0} QCM · 📝 {subject.exam_count || 0} examens</div><div>🔬 {subject.practical_count || 0} TP</div></div>
+              <div className="mt-3 text-left text-xs text-[#526174]">📄 {documentCount} document{documentCount > 1 ? 's' : ''}</div>
             </Link>
           );
         })}
