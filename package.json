@@ -8,6 +8,7 @@
     "dev:backend": "npm --prefix backend run dev",
     "dev:frontend": "npm --prefix frontend run dev",
     "build": "npm --prefix frontend run build",
+    "publish": "powershell -ExecutionPolicy Bypass -File ./scripts/publish.ps1",
     "start": "npm --prefix backend run start"
   },
   "devDependencies": {

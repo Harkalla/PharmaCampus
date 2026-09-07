@@ -30,6 +30,16 @@ npm --prefix frontend run dev
 npm --prefix frontend run build
 ```
 
+## Envoyer les mises a jour sur GitHub
+
+La commande suivante construit le frontend, cree un commit avec tous les changements suivis et envoie la branche `main` sur GitHub :
+
+```bash
+npm run publish -- "Description de la mise a jour"
+```
+
+Si aucun message n'est fourni, le commit utilise `Update PharmaCampus`. Les fichiers SQLite locaux restent ignores et ne sont pas envoyes.
+
 ## Déploiement
 Le projet est prêt pour Vercel ou Netlify.
 
