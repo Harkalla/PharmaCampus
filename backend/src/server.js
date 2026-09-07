@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const fs = require('fs');
 const path = require('path');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -150,23 +151,55 @@ app.post('/api/profile/password', authMiddleware, async (req, res) => {
 });
 
 app.get('/api/semesters', (req, res) => {
-  const semesters = Array.from({ length: 10 }, (_, index) => `S${index + 1}`);
-  const subjects = db.prepare('SELECT * FROM subjects ORDER BY semester, name').all();
-
-  const grouped = semesters.map((semester) => ({
-    id: semester,
-    name: semester,
-    subjects: subjects.filter((item) => item.semester === semester)
-  }));
+  const grouped = db.prepare(`
+    SELECT s.id, s.name, s.year, s.sort_order,
+      m.id AS module_id, m.name AS module_name, m.description AS module_description, m.sort_order AS module_order,
+      COUNT(CASE WHEN COALESCE(d.status, 'published') = 'published' THEN d.id END) AS document_count
+    FROM semesters s
+    LEFT JOIN modules m ON m.semester_id = s.id
+    LEFT JOIN documents d ON d.module_id = m.id OR d.subject_id = m.id
+    GROUP BY s.id, m.id
+    ORDER BY s.sort_order, m.sort_order
+  `).all().reduce((semesters, row) => {
+    let semester = semesters.find((item) => item.id === row.id);
+    if (!semester) {
+      semester = { id: row.id, name: row.name, year: row.year, modules: [] };
+      semesters.push(semester);
+    }
+    if (row.module_id) {
+      semester.modules.push({
+        id: row.module_id,
+        name: row.module_name,
+        description: row.module_description,
+        sort_order: row.module_order,
+        document_count: Number(row.document_count || 0)
+      });
+    }
+    return semesters;
+  }, []);
 
   res.json({ semesters: grouped });
 });
 
 app.get('/api/subjects', (req, res) => {
   const { semester } = req.query;
-  const query = semester ? 'SELECT * FROM subjects WHERE semester = ? ORDER BY name' : 'SELECT * FROM subjects ORDER BY semester, name';
+  const query = semester ? `SELECT s.*, m.id AS module_id, m.description AS module_description,
+      (SELECT COUNT(*) FROM documents d WHERE (d.module_id = m.id OR d.subject_id = m.id) AND COALESCE(d.status, 'published') = 'published') AS document_count
+      FROM subjects s LEFT JOIN modules m ON m.id = s.module_id WHERE s.semester = ? AND m.id IS NOT NULL ORDER BY m.sort_order, s.name` : `SELECT s.*, m.id AS module_id, m.description AS module_description,
+      (SELECT COUNT(*) FROM documents d WHERE (d.module_id = m.id OR d.subject_id = m.id) AND COALESCE(d.status, 'published') = 'published') AS document_count
+      FROM subjects s LEFT JOIN modules m ON m.id = s.module_id WHERE m.id IS NOT NULL ORDER BY s.semester, m.sort_order, s.name`;
   const rows = semester ? db.prepare(query).all(semester) : db.prepare(query).all();
   res.json({ subjects: rows });
+});
+
+app.get('/api/module/:moduleId', (req, res) => {
+  const module = db.prepare(`SELECT m.*, s.name AS semester_name, s.year AS semester_year
+    FROM modules m JOIN semesters s ON s.id = m.semester_id WHERE m.id = ?`).get(req.params.moduleId);
+  if (!module) return res.status(404).json({ error: 'Module introuvable.' });
+  const documents = db.prepare(`SELECT * FROM documents
+    WHERE (module_id = ? OR subject_id = ?) AND COALESCE(status, 'published') = 'published'
+    ORDER BY created_at DESC`).all(module.id, module.id);
+  res.json({ module, documents });
 });
 
 app.get('/api/subject/:subjectId', (req, res) => {
@@ -174,7 +207,7 @@ app.get('/api/subject/:subjectId', (req, res) => {
   if (!subject) return res.status(404).json({ error: 'Matière introuvable.' });
 
   const courses = db.prepare('SELECT * FROM courses WHERE subject_id = ?').all(subject.id);
-  const documents = db.prepare("SELECT * FROM documents WHERE subject_id = ? AND COALESCE(status, 'published') = 'published'").all(subject.id);
+  const documents = db.prepare("SELECT * FROM documents WHERE (subject_id = ? OR module_id = ?) AND COALESCE(status, 'published') = 'published'").all(subject.id, subject.module_id || subject.id);
   const exams = db.prepare('SELECT * FROM exams WHERE subject_id = ?').all(subject.id);
   const quiz = db.prepare('SELECT * FROM quizzes WHERE subject_id = ?').all(subject.id);
 
@@ -364,6 +397,13 @@ app.get('/api/admin/documents/pending', authMiddleware, adminMiddleware, (req, r
   res.json({ documents: rows });
 });
 
+app.get('/api/admin/documents', authMiddleware, adminMiddleware, (req, res) => {
+  const rows = db.prepare(`SELECT d.*, m.name AS module_name, s.name AS semester_name
+    FROM documents d LEFT JOIN modules m ON m.id = d.module_id LEFT JOIN semesters s ON s.id = d.semester_id
+    ORDER BY d.created_at DESC`).all();
+  res.json({ documents: rows });
+});
+
 app.patch('/api/admin/documents/:id/status', authMiddleware, adminMiddleware, (req, res) => {
   const { status, rejectionReason, title, semester, subjectId, category } = req.body;
   if (!['published', 'refused', 'archived'].includes(status)) return res.status(400).json({ error: 'Statut invalide.' });
@@ -460,17 +500,49 @@ app.post('/api/admin/subject', authMiddleware, adminMiddleware, (req, res) => {
 });
 
 app.post('/api/admin/documents', authMiddleware, adminMiddleware, upload.single('file'), (req, res) => {
-  const { title, description, subjectId, semester, type, category, author, year, tags } = req.body;
-  if (!title || !subjectId) return res.status(400).json({ error: 'Titre et matière requis.' });
+  const { title, description, subjectId, moduleId, semester, semesterId, type, category, author, year, tags, fileUrl } = req.body;
+  const selectedModuleId = moduleId || subjectId;
+  const module = selectedModuleId ? db.prepare('SELECT * FROM modules WHERE id = ?').get(selectedModuleId) : null;
+  if (!title || !module) return res.status(400).json({ error: 'Titre et module requis.' });
+  if (!req.file && !fileUrl) return res.status(400).json({ error: 'Un fichier ou une URL est requis.' });
+  if (fileUrl && !/^https?:\/\/[^\s]+$/i.test(fileUrl)) return res.status(400).json({ error: 'URL invalide.' });
 
-  const fileName = req.file ? req.file.originalname : 'document.pdf';
-  const filePath = req.file ? `/uploads/${req.file.filename}` : '/uploads/sample.pdf';
+  const fileName = req.file ? req.file.originalname : fileUrl;
+  const filePath = req.file ? `/uploads/${req.file.filename}` : fileUrl;
+  const resourceType = type || (req.file?.mimetype?.startsWith('image/') ? 'Image' : fileUrl ? 'URL' : 'PDF');
 
   const id = uuidv4();
-  db.prepare('INSERT INTO documents (id, title, description, subject_id, semester, type, category, author, file_name, file_path, status, submitted_by, year, tags) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, \'published\', ?, ?, ?, ?)')
-    .run(id, title, description || '', subjectId, semester || 'S5', type || 'PDF', category || 'Autre', author || 'Admin', fileName, filePath, req.user.id, year || null, tags || '');
+  db.prepare('INSERT INTO documents (id, title, description, subject_id, module_id, semester_id, semester, type, category, author, file_name, file_path, file_url, file_size, status, submitted_by, year, tags) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, \'published\', ?, ?, ?)')
+    .run(id, title, description || '', module.id, module.id, semesterId || module.semester_id, semester || module.semester_id, resourceType, category || 'Autre', author || 'Admin', fileName, filePath, fileUrl || null, req.file?.size || null, req.user.id, year || null, tags || '');
 
   res.status(201).json({ message: 'Document ajouté.' });
+});
+
+app.patch('/api/admin/documents/:id', authMiddleware, adminMiddleware, upload.single('file'), (req, res) => {
+  const document = db.prepare('SELECT * FROM documents WHERE id = ?').get(req.params.id);
+  if (!document) return res.status(404).json({ error: 'Document introuvable.' });
+  const { title, description, category, moduleId, fileUrl } = req.body;
+  const module = moduleId ? db.prepare('SELECT * FROM modules WHERE id = ?').get(moduleId) : null;
+  if (moduleId && !module) return res.status(400).json({ error: 'Module introuvable.' });
+  if (fileUrl && !/^https?:\/\/[^\s]+$/i.test(fileUrl)) return res.status(400).json({ error: 'URL invalide.' });
+  const filePath = req.file ? `/uploads/${req.file.filename}` : fileUrl || document.file_path;
+  db.prepare(`UPDATE documents SET title = ?, description = ?, category = ?, module_id = COALESCE(?, module_id),
+    semester_id = COALESCE(?, semester_id), semester = COALESCE(?, semester), file_path = ?, file_url = COALESCE(?, file_url),
+    file_name = COALESCE(?, file_name), file_size = COALESCE(?, file_size), updated_at = CURRENT_TIMESTAMP WHERE id = ?`)
+    .run(title || document.title, description ?? document.description, category || document.category, module?.id || null,
+      module?.semester_id || null, module?.semester_id || null, filePath, fileUrl || null, req.file?.originalname || null, req.file?.size || null, document.id);
+  res.json({ message: 'Document modifié.' });
+});
+
+app.delete('/api/admin/documents/:id', authMiddleware, adminMiddleware, (req, res) => {
+  const document = db.prepare('SELECT * FROM documents WHERE id = ?').get(req.params.id);
+  if (!document) return res.status(404).json({ error: 'Document introuvable.' });
+  if (document.file_path?.startsWith('/uploads/')) {
+    const localFile = path.join(uploadDir, path.basename(document.file_path));
+    if (fs.existsSync(localFile)) fs.unlinkSync(localFile);
+  }
+  db.prepare('DELETE FROM documents WHERE id = ?').run(document.id);
+  res.json({ message: 'Document supprimé.' });
 });
 
 app.get('/api/admin/reports', authMiddleware, adminMiddleware, (req, res) => {

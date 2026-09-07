@@ -17,6 +17,8 @@ export type Subject = {
   id: string;
   name: string;
   semester: string;
+  module_id?: string;
+  document_count?: number;
   description?: string;
   category?: string;
 };
@@ -35,16 +37,22 @@ export type DocumentItem = {
   title: string;
   description?: string;
   subject_id?: string;
+  module_id?: string;
+  semester_id?: string;
   semester?: string;
   type?: string;
+  category?: string;
   author?: string;
   file_name?: string;
   file_path?: string;
+  file_url?: string;
+  file_size?: number;
   status?: string;
   submitted_by?: string;
   year?: number;
   rejection_reason?: string;
   created_at?: string;
+  updated_at?: string;
 };
 
 export type Quiz = {

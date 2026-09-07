@@ -3,6 +3,12 @@ import { apiFetch } from './api';
 import { Subject, DocumentItem, Medicine, QuestionItem } from '../types';
 
 export async function fetchSubjects(semester?: string): Promise<Subject[]> {
+  try {
+    const response = await apiFetch<{ subjects: Subject[] }>(semester ? `/subjects?semester=${encodeURIComponent(semester)}` : '/subjects');
+    if (response.subjects.length) return response.subjects;
+  } catch {
+    // The Supabase fallback keeps the existing hosted setup usable.
+  }
   if (supabase) {
     let query = supabase.from('subjects').select('*');
     if (semester) query = query.eq('semester', semester);
@@ -15,6 +21,11 @@ export async function fetchSubjects(semester?: string): Promise<Subject[]> {
 }
 
 export async function fetchSubjectById(subjectId: string) {
+  try {
+    return await apiFetch(`/subject/${subjectId}`);
+  } catch {
+    // Continue with Supabase when the local API is unavailable.
+  }
   if (supabase) {
     const { data: subject, error: subjectError } = await supabase.from('subjects').select('*').eq('id', subjectId).maybeSingle();
     if (!subjectError && subject) {

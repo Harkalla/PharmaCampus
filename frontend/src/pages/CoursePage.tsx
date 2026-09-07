@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { apiFetch } from '../lib/api';
 import { Subject, Course, DocumentItem, User } from '../types';
+import { formatDate } from '../lib/api';
 
 type CoursePageProps = { user: User; onLogout: () => void; };
 
@@ -48,9 +49,11 @@ const CoursePage = ({ user, onLogout }: CoursePageProps) => {
             <h3 className="mb-4 text-xl font-bold text-slate-800">Documents</h3>
             <div className="space-y-3">
               {data?.documents?.map((document) => (
-                <a key={document.id} href={`http://localhost:4000${document.file_path || '/uploads/sample.pdf'}`} target="_blank" rel="noreferrer" className="block rounded-2xl border border-slate-200 bg-slate-50 p-3 hover:border-brand-300">
-                  {document.title}
-                </a>
+                <article key={document.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="flex items-start justify-between gap-3"><div><h4 className="font-bold text-slate-800">{document.title}</h4><p className="mt-1 text-xs text-slate-500">{document.type || 'Document'} • {document.category || 'Autre'} • {formatDate(document.created_at)}</p></div><span className="text-xs text-slate-500">{document.file_size ? `${Math.round(document.file_size / 1024)} Ko` : 'Taille inconnue'}</span></div>
+                  <p className="mt-2 text-sm text-slate-600">{document.description || 'Ressource pédagogique du module.'}</p>
+                  <a href={document.file_url || `http://localhost:4000${document.file_path || ''}`} target="_blank" rel="noreferrer" className="mt-3 inline-flex rounded-lg bg-brand-600 px-3 py-2 text-sm font-semibold text-white hover:bg-brand-700">Ouvrir</a>
+                </article>
               )) || <div className="text-slate-500">Aucun document.</div>}
             </div>
           </section>

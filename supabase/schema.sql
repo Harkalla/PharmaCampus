@@ -20,6 +20,17 @@ create table if not exists public.profiles (
 create table if not exists public.semesters (
   id text primary key,
   name text not null unique,
+  year integer not null default 1,
+  sort_order integer not null default 1,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.modules (
+  id text primary key,
+  semester_id text not null references public.semesters(id) on delete cascade,
+  name text not null,
+  description text,
+  sort_order integer not null default 1,
   created_at timestamptz not null default now()
 );
 
@@ -29,6 +40,8 @@ create table if not exists public.subjects (
   semester text not null,
   description text,
   category text,
+  module_id text references public.modules(id) on delete set null,
+  semester_id text references public.semesters(id) on delete set null,
   created_at timestamptz not null default now()
 );
 
@@ -47,12 +60,16 @@ create table if not exists public.documents (
   title text not null,
   description text,
   subject_id uuid references public.subjects(id) on delete set null,
+  module_id text references public.modules(id) on delete set null,
+  semester_id text references public.semesters(id) on delete set null,
   semester text,
   type text,
   category text not null default 'Autre',
   author text,
   file_name text,
   file_path text,
+  file_url text,
+  file_size bigint,
   status text not null default 'published' check (status in ('draft','pending','published','refused','archived')),
   submitted_by uuid references public.profiles(id) on delete set null,
   year integer,
@@ -61,6 +78,7 @@ create table if not exists public.documents (
   reviewed_by uuid references public.profiles(id) on delete set null,
   reviewed_at timestamptz,
   rejection_reason text,
+  updated_at timestamptz not null default now(),
   created_at timestamptz not null default now()
 );
 
@@ -197,6 +215,7 @@ $$;
 
 alter table public.profiles enable row level security;
 alter table public.semesters enable row level security;
+alter table public.modules enable row level security;
 alter table public.subjects enable row level security;
 alter table public.courses enable row level security;
 alter table public.documents enable row level security;
@@ -232,6 +251,14 @@ for select using (true);
 
 drop policy if exists "Admins can manage semesters" on public.semesters;
 create policy "Admins can manage semesters" on public.semesters
+for all using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "Anyone can read modules" on public.modules;
+create policy "Anyone can read modules" on public.modules
+for select using (true);
+
+drop policy if exists "Admins can manage modules" on public.modules;
+create policy "Admins can manage modules" on public.modules
 for all using (public.is_admin()) with check (public.is_admin());
 
 drop policy if exists "Anyone can read subjects" on public.subjects;
@@ -287,6 +314,31 @@ for select using (auth.uid() = user_id or public.is_admin());
 drop policy if exists "Admins can manage contributions" on public.document_contributions;
 create policy "Admins can manage contributions" on public.document_contributions
 for all using (public.is_admin()) with check (public.is_admin());
+
+insert into storage.buckets (id, name, public)
+values ('pharmacampus-documents', 'pharmacampus-documents', false)
+on conflict (id) do nothing;
+
+drop policy if exists "Authenticated users can read published resources" on storage.objects;
+create policy "Authenticated users can read published resources" on storage.objects
+for select to authenticated
+using (bucket_id = 'pharmacampus-documents');
+
+drop policy if exists "Admins can upload resources" on storage.objects;
+create policy "Admins can upload resources" on storage.objects
+for insert to authenticated
+with check (bucket_id = 'pharmacampus-documents' and public.is_admin());
+
+drop policy if exists "Admins can update resources" on storage.objects;
+create policy "Admins can update resources" on storage.objects
+for update to authenticated
+using (bucket_id = 'pharmacampus-documents' and public.is_admin())
+with check (bucket_id = 'pharmacampus-documents' and public.is_admin());
+
+drop policy if exists "Admins can delete resources" on storage.objects;
+create policy "Admins can delete resources" on storage.objects
+for delete to authenticated
+using (bucket_id = 'pharmacampus-documents' and public.is_admin());
 
 drop policy if exists "Anyone can read exams" on public.exams;
 create policy "Anyone can read exams" on public.exams

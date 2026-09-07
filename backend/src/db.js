@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const Database = require('better-sqlite3');
 const bcrypt = require('bcryptjs');
+const { ensureAcademicCatalog } = require('./academicCatalog');
 
 const dbDir = path.join(__dirname, '..', 'data');
 if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
@@ -82,6 +83,7 @@ function initializeDatabase() {
       file_path TEXT,
       file_url TEXT,
       file_size INTEGER,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
       status TEXT DEFAULT 'published',
       submitted_by TEXT,
       year INTEGER,
@@ -204,10 +206,17 @@ function initializeDatabase() {
   const documentColumns = [
     ['category', "TEXT DEFAULT 'Autre'"], ['status', "TEXT DEFAULT 'published'"], ['submitted_by', 'TEXT'], ['year', 'INTEGER'],
     ['tags', 'TEXT'], ['cover_image', 'TEXT'], ['reviewed_by', 'TEXT'],
-    ['reviewed_at', 'TEXT'], ['rejection_reason', 'TEXT'], ['module_id', 'TEXT'], ['semester_id', 'TEXT'], ['file_url', 'TEXT'], ['file_size', 'INTEGER']
+    ['reviewed_at', 'TEXT'], ['rejection_reason', 'TEXT'], ['module_id', 'TEXT'], ['semester_id', 'TEXT'], ['file_url', 'TEXT'], ['file_size', 'INTEGER'], ['updated_at', 'TEXT']
   ];
   documentColumns.forEach(([name, definition]) => {
     try { db.exec(`ALTER TABLE documents ADD COLUMN ${name} ${definition}`); } catch (error) {
+      if (!String(error.message).includes('duplicate column name')) throw error;
+    }
+  });
+
+  const subjectColumns = [['module_id', 'TEXT'], ['semester_id', 'TEXT']];
+  subjectColumns.forEach(([name, definition]) => {
+    try { db.exec(`ALTER TABLE subjects ADD COLUMN ${name} ${definition}`); } catch (error) {
       if (!String(error.message).includes('duplicate column name')) throw error;
     }
   });
@@ -397,6 +406,8 @@ function initializeDatabase() {
     db.prepare('INSERT INTO reports (id, user_id, type, description, created_at) VALUES (?, ?, ?, ?, ?)').run('REP1', 'user-1', 'erreur', 'Une erreur de formulation a été constatée dans le cours de pharmacologie.', new Date().toISOString());
     db.prepare('INSERT INTO suggestions (id, user_id, title, description, created_at) VALUES (?, ?, ?, ?, ?)').run('SUG1', 'user-1', 'Ajouter un espace de révision par matière', 'Une section dédiée aux fiches de révision par matière serait très utile.', new Date().toISOString());
   }
+
+  ensureAcademicCatalog(db);
 }
 
 module.exports = { db, initializeDatabase };

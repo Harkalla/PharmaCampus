@@ -20,6 +20,8 @@ if ($LASTEXITCODE -ne 0) {
     throw 'Impossible de preparer les fichiers Git.'
 }
 
+git restore --staged -- backend/data/*.db backend/data/*.db-shm backend/data/*.db-wal 2>$null
+
 $stagedChanges = git diff --cached --quiet
 if ($LASTEXITCODE -eq 0) {
     Write-Host 'Aucun changement a envoyer.'
