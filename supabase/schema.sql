@@ -90,6 +90,29 @@ create table if not exists public.documents (
   created_at timestamptz not null default now()
 );
 
+-- Create this table before its policies and Storage rules are evaluated.
+create table if not exists public.document_contributions (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  title text not null,
+  description text,
+  subject_id uuid references public.subjects(id) on delete set null,
+  module_id uuid references public.modules(id) on delete set null,
+  semester_id text references public.semesters(id) on delete set null,
+  semester text,
+  category text not null default 'Autre',
+  type text,
+  year integer,
+  file_name text not null,
+  file_path text not null,
+  file_size bigint,
+  status text not null default 'pending' check (status in ('pending','published','refused','archived')),
+  rejection_reason text,
+  reviewed_by uuid references public.profiles(id) on delete set null,
+  reviewed_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
 create table if not exists public.exams (
   id uuid primary key default uuid_generate_v4(),
   title text not null,
@@ -381,28 +404,6 @@ for select using (status = 'published' or public.is_admin() or auth.uid() = subm
 drop policy if exists "Admins can manage documents" on public.documents;
 create policy "Admins can manage documents" on public.documents
 for all using (public.is_admin()) with check (public.is_admin());
-
-create table if not exists public.document_contributions (
-  id uuid primary key default uuid_generate_v4(),
-  user_id uuid not null references public.profiles(id) on delete cascade,
-  title text not null,
-  description text,
-  subject_id uuid references public.subjects(id) on delete set null,
-  module_id uuid references public.modules(id) on delete set null,
-  semester_id text references public.semesters(id) on delete set null,
-  semester text,
-  category text not null default 'Autre',
-  type text,
-  year integer,
-  file_name text not null,
-  file_path text not null,
-  file_size bigint,
-  status text not null default 'pending' check (status in ('pending','published','refused','archived')),
-  rejection_reason text,
-  reviewed_by uuid references public.profiles(id) on delete set null,
-  reviewed_at timestamptz,
-  created_at timestamptz not null default now()
-);
 
 alter table public.document_contributions enable row level security;
 alter table public.document_contributions add column if not exists module_id uuid references public.modules(id) on delete set null;
