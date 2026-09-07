@@ -26,7 +26,8 @@ create table if not exists public.semesters (
 );
 
 create table if not exists public.modules (
-  id text primary key,
+  id uuid primary key default uuid_generate_v4(),
+  code text unique,
   semester_id text not null references public.semesters(id) on delete cascade,
   name text not null,
   description text,
@@ -40,7 +41,7 @@ create table if not exists public.subjects (
   semester text not null,
   description text,
   category text,
-  module_id text references public.modules(id) on delete set null,
+  module_id uuid references public.modules(id) on delete set null,
   semester_id text references public.semesters(id) on delete set null,
   created_at timestamptz not null default now()
 );
@@ -67,7 +68,7 @@ create table if not exists public.documents (
   title text not null,
   description text,
   subject_id uuid references public.subjects(id) on delete set null,
-  module_id text references public.modules(id) on delete set null,
+  module_id uuid references public.modules(id) on delete set null,
   semester_id text references public.semesters(id) on delete set null,
   semester text,
   type text,
@@ -93,7 +94,7 @@ create table if not exists public.exams (
   id uuid primary key default uuid_generate_v4(),
   title text not null,
   subject_id uuid references public.subjects(id) on delete cascade,
-  module_id text references public.modules(id) on delete set null,
+  module_id uuid references public.modules(id) on delete set null,
   semester_id text references public.semesters(id) on delete set null,
   semester text,
   year integer,
@@ -117,7 +118,7 @@ create table if not exists public.quizzes (
   id uuid primary key default uuid_generate_v4(),
   title text not null,
   subject_id uuid references public.subjects(id) on delete set null,
-  module_id text references public.modules(id) on delete set null,
+  module_id uuid references public.modules(id) on delete set null,
   semester_id text references public.semesters(id) on delete set null,
   semester text,
   created_at timestamptz not null default now()
@@ -162,7 +163,7 @@ create table if not exists public.medicines (
 create table if not exists public.practicals (
   id uuid primary key default uuid_generate_v4(),
   title text not null,
-  module_id text references public.modules(id) on delete cascade,
+  module_id uuid references public.modules(id) on delete cascade,
   semester_id text references public.semesters(id) on delete cascade,
   objectives text,
   materials text,
@@ -178,7 +179,7 @@ create table if not exists public.practicals (
 
 create table if not exists public.revision_questions (
   id uuid primary key default uuid_generate_v4(),
-  module_id text references public.modules(id) on delete cascade,
+  module_id uuid references public.modules(id) on delete cascade,
   semester_id text references public.semesters(id) on delete cascade,
   question text not null,
   answer text,
@@ -192,7 +193,7 @@ create table if not exists public.revision_questions (
 create table if not exists public.user_progress (
   id uuid primary key default uuid_generate_v4(),
   user_id uuid not null references public.profiles(id) on delete cascade,
-  module_id text references public.modules(id) on delete cascade,
+  module_id uuid references public.modules(id) on delete cascade,
   resource_type text not null,
   resource_id uuid,
   viewed_at timestamptz not null default now(),
@@ -260,10 +261,39 @@ alter table public.courses add column if not exists file_url text;
 alter table public.courses add column if not exists file_size bigint;
 alter table public.courses add column if not exists status text not null default 'published';
 alter table public.documents add column if not exists updated_at timestamptz not null default now();
-alter table public.exams add column if not exists module_id text references public.modules(id) on delete set null;
+alter table public.modules add column if not exists code text;
+alter table public.exams add column if not exists module_id uuid references public.modules(id) on delete set null;
 alter table public.exams add column if not exists semester_id text references public.semesters(id) on delete set null;
-alter table public.quizzes add column if not exists module_id text references public.modules(id) on delete set null;
+alter table public.quizzes add column if not exists module_id uuid references public.modules(id) on delete set null;
 alter table public.quizzes add column if not exists semester_id text references public.semesters(id) on delete set null;
+
+-- Compatibility migration for an earlier schema that used text module_id values.
+-- Legacy values are preserved instead of being deleted; new relations use UUIDs.
+do $$
+declare
+  relation_name text;
+  module_column_type text;
+begin
+  foreach relation_name in array array['subjects', 'documents', 'exams', 'quizzes', 'practicals', 'revision_questions', 'user_progress', 'document_contributions'] loop
+    select c.udt_name into module_column_type
+    from information_schema.columns c
+    where c.table_schema = 'public'
+      and c.table_name = relation_name
+      and c.column_name = 'module_id';
+
+    if module_column_type = 'text' then
+      execute format('alter table public.%I drop constraint if exists %I', relation_name, relation_name || '_module_id_fkey');
+      execute format('alter table public.%I rename column module_id to module_code_legacy', relation_name);
+    end if;
+  end loop;
+end $$;
+
+alter table public.subjects add column if not exists module_id uuid references public.modules(id) on delete set null;
+alter table public.documents add column if not exists module_id uuid references public.modules(id) on delete set null;
+alter table public.practicals add column if not exists module_id uuid references public.modules(id) on delete cascade;
+alter table public.revision_questions add column if not exists module_id uuid references public.modules(id) on delete cascade;
+alter table public.user_progress add column if not exists module_id uuid references public.modules(id) on delete cascade;
+alter table public.document_contributions add column if not exists module_id uuid references public.modules(id) on delete set null;
 
 create or replace function public.is_admin()
 returns boolean
@@ -358,7 +388,7 @@ create table if not exists public.document_contributions (
   title text not null,
   description text,
   subject_id uuid references public.subjects(id) on delete set null,
-  module_id text references public.modules(id) on delete set null,
+  module_id uuid references public.modules(id) on delete set null,
   semester_id text references public.semesters(id) on delete set null,
   semester text,
   category text not null default 'Autre',
@@ -375,7 +405,7 @@ create table if not exists public.document_contributions (
 );
 
 alter table public.document_contributions enable row level security;
-alter table public.document_contributions add column if not exists module_id text references public.modules(id) on delete set null;
+alter table public.document_contributions add column if not exists module_id uuid references public.modules(id) on delete set null;
 alter table public.document_contributions add column if not exists semester_id text references public.semesters(id) on delete set null;
 alter table public.document_contributions add column if not exists file_size bigint;
 drop policy if exists "Students can create contributions" on public.document_contributions;
