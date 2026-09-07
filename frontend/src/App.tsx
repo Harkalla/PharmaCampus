@@ -29,9 +29,10 @@ const App = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let disposed = false;
     getSupabaseSessionUser()
       .then((sessionUser) => {
-        if (sessionUser) {
+        if (sessionUser && !disposed) {
           setUser(sessionUser as User);
         }
       })
@@ -39,6 +40,15 @@ const App = () => {
         setUser(null);
       })
       .finally(() => setLoading(false));
+
+    if (supabase) {
+      const { data: subscription } = supabase.auth.onAuthStateChange((event, session) => {
+        if (disposed) return;
+        if (event === 'SIGNED_OUT' || !session) setUser(null);
+      });
+      return () => { disposed = true; subscription.subscription.unsubscribe(); };
+    }
+    return () => { disposed = true; };
   }, []);
 
   if (loading) {

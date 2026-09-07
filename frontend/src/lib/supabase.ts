@@ -28,16 +28,20 @@ export async function signUpWithSupabase(payload: {
   bio?: string;
   photoUrl?: string;
 }): Promise<AuthResponse> {
+  const normalizedEmail = payload.email.trim().toLowerCase();
+  if (!normalizedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+    throw new Error('Adresse email invalide.');
+  }
   if (!/^[A-Za-z0-9]{6,8}$/.test(payload.password) || !/[A-Za-z]/.test(payload.password) || !/[0-9]/.test(payload.password)) {
     throw new Error('Le mot de passe doit contenir 6 à 8 caractères, uniquement des lettres et chiffres, avec au moins une lettre et un chiffre.');
   }
 
   if (!supabase) {
-    return apiFetch<AuthResponse>('/auth/register', { method: 'POST', body: JSON.stringify(payload) });
+    return apiFetch<AuthResponse>('/auth/register', { method: 'POST', body: JSON.stringify({ ...payload, email: normalizedEmail }) });
   }
 
   const { data, error } = await supabase.auth.signUp({
-    email: payload.email,
+    email: normalizedEmail,
     password: payload.password,
     options: {
       data: {
@@ -59,11 +63,11 @@ export async function signUpWithSupabase(payload: {
   const user = data.user;
 
   return {
-    user: user ? {
+    user: user && data.session ? {
       id: user.id,
       first_name: payload.firstName,
       last_name: payload.lastName,
-      email: payload.email,
+      email: normalizedEmail,
       country: payload.country || '',
       city: payload.city || '',
       university: payload.university || '',
@@ -73,7 +77,7 @@ export async function signUpWithSupabase(payload: {
       photo_url: payload.photoUrl || '',
       role: 'user'
     } : null,
-    token: data.session?.access_token || ''
+      token: data.session?.access_token || ''
   };
 }
 
