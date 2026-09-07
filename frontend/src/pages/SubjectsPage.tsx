@@ -70,7 +70,7 @@ const SubjectsPage = ({ user, onLogout }: SubjectsPageProps) => {
   };
 
   return (
-    <Layout user={user} title={`Niveau ${currentSemester}`} onLogout={onLogout}>
+    <Layout user={user} title={`Semestre ${currentSemester}`} onLogout={onLogout}>
       {user.role === 'admin' && (
         <div className="mb-8 rounded-[22px] border border-[#bfead2] bg-[#dff5eb] p-5 text-[#1b2f2a] shadow-sm">
           <p className="text-lg font-extrabold text-[#1d2f2d]">Mode administrateur — ajoutez et gérez les ressources officielles.</p>
@@ -96,7 +96,7 @@ const SubjectsPage = ({ user, onLogout }: SubjectsPageProps) => {
                 <span className="inline-flex h-12 w-12 items-center justify-center rounded-lg border border-[#66b79a] bg-[#edfaf4] text-2xl text-[#1f9f72]">📘</span>
               </div>
               <div className="mt-3 text-center text-[1.1rem] font-black leading-tight text-[#1c2430]">{subject.name}</div>
-              <div className="mt-2 text-center text-sm text-[#4c5966]">{documentCount} document{documentCount > 1 ? 's' : ''}</div>
+              <div className="mt-3 space-y-1 text-center text-xs text-[#4c5966]"><div>📚 {subject.course_count || 0} cours</div><div>📄 {documentCount} document{documentCount > 1 ? 's' : ''}</div><div>❓ {subject.quiz_count || 0} QCM · 📝 {subject.exam_count || 0} examens</div><div>🔬 {subject.practical_count || 0} TP</div></div>
             </Link>
           );
         })}

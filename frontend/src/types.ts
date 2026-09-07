@@ -19,6 +19,10 @@ export type Subject = {
   semester: string;
   module_id?: string;
   document_count?: number;
+  course_count?: number;
+  quiz_count?: number;
+  exam_count?: number;
+  practical_count?: number;
   description?: string;
   category?: string;
 };

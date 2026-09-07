@@ -6,6 +6,7 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
 import SubjectsPage from './pages/SubjectsPage';
+import CoursesPage from './pages/CoursesPage';
 import CoursePage from './pages/CoursePage';
 import DocumentsPage from './pages/DocumentsPage';
 import ExamsPage from './pages/ExamsPage';
@@ -90,6 +91,7 @@ const App = () => {
       <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <LoginPage onLogin={handleLogin} />} />
       <Route path="/register" element={user ? <Navigate to="/dashboard" replace /> : <RegisterPage onLogin={handleLogin} />} />
       <Route path="/dashboard" element={user ? <DashboardPage user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
+      <Route path="/cours" element={user ? <CoursesPage user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
       <Route path="/niveaux/:semester" element={user ? <SubjectsPage user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
       <Route path="/matiere/:subjectId" element={user ? <CoursePage user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
       <Route path="/documents" element={user ? <DocumentsPage user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} />

@@ -154,10 +154,13 @@ app.get('/api/semesters', (req, res) => {
   const grouped = db.prepare(`
     SELECT s.id, s.name, s.year, s.sort_order,
       m.id AS module_id, m.name AS module_name, m.description AS module_description, m.sort_order AS module_order,
-      COUNT(CASE WHEN COALESCE(d.status, 'published') = 'published' THEN d.id END) AS document_count
+      (SELECT COUNT(*) FROM documents d WHERE (d.module_id = m.id OR d.subject_id = m.id) AND COALESCE(d.status, 'published') = 'published') AS document_count,
+      (SELECT COUNT(*) FROM courses c WHERE c.subject_id = m.id) AS course_count,
+      (SELECT COUNT(*) FROM quizzes q WHERE q.subject_id = m.id) AS quiz_count,
+      (SELECT COUNT(*) FROM exams e WHERE e.subject_id = m.id) AS exam_count,
+      0 AS practical_count
     FROM semesters s
     LEFT JOIN modules m ON m.semester_id = s.id
-    LEFT JOIN documents d ON d.module_id = m.id OR d.subject_id = m.id
     GROUP BY s.id, m.id
     ORDER BY s.sort_order, m.sort_order
   `).all().reduce((semesters, row) => {
@@ -172,7 +175,11 @@ app.get('/api/semesters', (req, res) => {
         name: row.module_name,
         description: row.module_description,
         sort_order: row.module_order,
-        document_count: Number(row.document_count || 0)
+        course_count: Number(row.course_count || 0),
+        document_count: Number(row.document_count || 0),
+        quiz_count: Number(row.quiz_count || 0),
+        exam_count: Number(row.exam_count || 0),
+        practical_count: Number(row.practical_count || 0)
       });
     }
     return semesters;

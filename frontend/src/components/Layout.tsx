@@ -13,7 +13,7 @@ type LayoutProps = {
 
 const navItems = [
   { to: '/dashboard', label: 'Accueil', icon: '⌂' },
-  { to: '/niveaux/S5', label: 'Cours', icon: '▤' },
+  { to: '/cours', label: 'Cours', icon: '▤' },
   { to: '/documents', label: 'Réviser', icon: '◒' },
   { to: '/entraide', label: 'Communauté', icon: '♧' },
   { to: '/profil', label: 'Profil', icon: '◉' }
@@ -41,7 +41,7 @@ const Layout = ({ user, title, children, onLogout }: LayoutProps) => {
       { to: '/dashboard', label: 'Accueil', icon: Home },
       { to: '/profil', label: 'Mon profil', icon: UserRound },
       { to: '/entraide', label: 'Communauté', icon: Users },
-      { to: '/niveaux/S5', label: 'Mes cours', icon: BookOpen },
+      { to: '/cours', label: 'Mes cours', icon: BookOpen },
       { to: '/notifications', label: 'Notifications', icon: Bell },
       { to: '/remarques', label: 'Remarques', icon: FileText },
       { to: '/settings', label: 'Paramètres', icon: Settings }
@@ -90,7 +90,7 @@ const Layout = ({ user, title, children, onLogout }: LayoutProps) => {
             <h1 className="mt-2 text-3xl font-black tracking-tight text-emerald-50 sm:text-4xl">{title}</h1>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link to="/niveaux/S5" className="secondary-btn">Niveaux S1-S10</Link>
+            <Link to="/cours" className="secondary-btn">Cours S1-S10</Link>
             {user.role !== 'admin' && <Link to="/contributions" className="secondary-btn">Mes contributions</Link>}
             {user.role === 'admin' && <Link to="/admin" className="primary-btn">Espace admin</Link>}
           </div>
