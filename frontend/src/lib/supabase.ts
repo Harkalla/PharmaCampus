@@ -15,6 +15,56 @@ export const supabase = supabaseUrl && supabaseKey ? createClient(supabaseUrl, s
 
 type AuthResponse = { user: User | null; token: string };
 
+function normalizeProfileFromUser(user: { id: string; email?: string | null; user_metadata?: Record<string, any> } | null, fallback?: Partial<User>) {
+  if (!user) return null;
+
+  return {
+    id: user.id,
+    first_name: user.user_metadata?.first_name || fallback?.first_name || '',
+    last_name: user.user_metadata?.last_name || fallback?.last_name || '',
+    email: user.email || fallback?.email || '',
+    country: user.user_metadata?.country || fallback?.country || '',
+    city: user.user_metadata?.city || fallback?.city || '',
+    university: user.user_metadata?.university || fallback?.university || '',
+    level: user.user_metadata?.level || fallback?.level || '',
+    semester: user.user_metadata?.semester || fallback?.semester || '',
+    bio: user.user_metadata?.bio || fallback?.bio || '',
+    photo_url: user.user_metadata?.photo_url || fallback?.photo_url || '',
+    role: fallback?.role || 'user'
+  } as User;
+}
+
+async function ensureProfileForUser(user: { id: string; email?: string | null; user_metadata?: Record<string, any> } | null, fallback?: Partial<User>) {
+  if (!supabase || !user) return null;
+
+  const profile = normalizeProfileFromUser(user, fallback);
+  if (!profile) return null;
+
+  const { error } = await supabase
+    .from('profiles')
+    .upsert({
+      id: profile.id,
+      email: profile.email,
+      first_name: profile.first_name,
+      last_name: profile.last_name,
+      country: profile.country,
+      city: profile.city,
+      university: profile.university,
+      level: profile.level,
+      semester: profile.semester,
+      bio: profile.bio,
+      photo_url: profile.photo_url,
+      role: profile.role
+    }, { onConflict: 'id' });
+
+  if (error) {
+    console.error('[auth] Impossible de créer ou mettre à jour le profil Supabase:', error);
+    return null;
+  }
+
+  return profile;
+}
+
 export async function signUpWithSupabase(payload: {
   email: string;
   password: string;
@@ -61,10 +111,8 @@ export async function signUpWithSupabase(payload: {
   if (error) throw new Error(error.message);
 
   const user = data.user;
-
-  return {
-    user: user && data.session ? {
-      id: user.id,
+  if (user) {
+    await ensureProfileForUser(user, {
       first_name: payload.firstName,
       last_name: payload.lastName,
       email: normalizedEmail,
@@ -76,8 +124,24 @@ export async function signUpWithSupabase(payload: {
       bio: payload.bio || '',
       photo_url: payload.photoUrl || '',
       role: 'user'
-    } : null,
-      token: data.session?.access_token || ''
+    });
+  }
+
+  return {
+    user: user && data.session ? normalizeProfileFromUser(user, {
+      first_name: payload.firstName,
+      last_name: payload.lastName,
+      email: normalizedEmail,
+      country: payload.country || '',
+      city: payload.city || '',
+      university: payload.university || '',
+      level: payload.level || '',
+      semester: payload.semester || '',
+      bio: payload.bio || '',
+      photo_url: payload.photoUrl || '',
+      role: 'user'
+    }) : null,
+    token: data.session?.access_token || ''
   };
 }
 
@@ -98,26 +162,33 @@ export async function signInWithSupabase(email: string, password: string): Promi
   }
   if (!data.session?.access_token || !data.user) throw new Error('Connexion réussie mais session Supabase absente.');
 
-  const profileResponse = await supabase
+  let profileResponse = await supabase
     .from('profiles')
     .select('*')
     .eq('id', data.user.id)
     .maybeSingle();
 
-  const profile = profileResponse.data || {
-    id: data.user.id,
-    first_name: data.user.user_metadata?.first_name || '',
-    last_name: data.user.user_metadata?.last_name || '',
+  if (!profileResponse.data) {
+    const repairedProfile = await ensureProfileForUser(data.user, {
+      email: data.user.email || normalizedEmail
+    });
+    if (repairedProfile) {
+      profileResponse = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', data.user.id)
+        .maybeSingle();
+    }
+  }
+
+  const profile = profileResponse.data || normalizeProfileFromUser(data.user, {
     email: data.user.email || normalizedEmail,
-    country: data.user.user_metadata?.country || '',
-    city: data.user.user_metadata?.city || '',
-    university: data.user.user_metadata?.university || '',
-    level: data.user.user_metadata?.level || '',
-    semester: data.user.user_metadata?.semester || '',
-    bio: data.user.user_metadata?.bio || '',
-    photo_url: data.user.user_metadata?.photo_url || '',
     role: 'user'
-  };
+  });
+
+  if (!profile) {
+    throw new Error('Aucun profil n’a été trouvé pour cet utilisateur. Vérifiez la configuration de la table profiles dans Supabase.');
+  }
 
   return {
     user: profile,
@@ -150,18 +221,34 @@ export async function getSupabaseSessionUser() {
     return null;
   }
 
-  const { data: profile } = await supabase
+  let profileResponse = await supabase
     .from('profiles')
     .select('*')
     .eq('id', session.user.id)
     .maybeSingle();
 
+  if (!profileResponse.data) {
+    const repairedProfile = await ensureProfileForUser(session.user, {
+      email: session.user.email || ''
+    });
+    if (repairedProfile) {
+      profileResponse = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', session.user.id)
+        .maybeSingle();
+    }
+  }
+
   return {
-    ...(profile || {
+    ...(profileResponse.data || normalizeProfileFromUser(session.user, {
+      email: session.user.email || '',
+      role: 'user'
+    }) || {
       id: session.user.id,
       first_name: session.user.user_metadata?.first_name || '',
       last_name: session.user.user_metadata?.last_name || '',
-      email: session.user.email,
+      email: session.user.email || '',
       country: session.user.user_metadata?.country || '',
       city: session.user.user_metadata?.city || '',
       university: session.user.user_metadata?.university || '',

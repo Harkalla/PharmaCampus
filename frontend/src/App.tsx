@@ -42,9 +42,22 @@ const App = () => {
       .finally(() => setLoading(false));
 
     if (supabase) {
-      const { data: subscription } = supabase.auth.onAuthStateChange((event, session) => {
+      const { data: subscription } = supabase.auth.onAuthStateChange(async (event, session) => {
         if (disposed) return;
-        if (event === 'SIGNED_OUT' || !session) setUser(null);
+
+        if (event === 'SIGNED_OUT' || !session) {
+          setUser(null);
+          return;
+        }
+
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+          try {
+            const sessionUser = await getSupabaseSessionUser();
+            setUser(sessionUser as User | null);
+          } catch {
+            setUser(null);
+          }
+        }
       });
       return () => { disposed = true; subscription.subscription.unsubscribe(); };
     }

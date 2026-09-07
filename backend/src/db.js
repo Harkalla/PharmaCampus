@@ -28,12 +28,33 @@ function initializeDatabase() {
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE IF NOT EXISTS semesters (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL UNIQUE,
+      year INTEGER NOT NULL,
+      sort_order INTEGER NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS modules (
+      id TEXT PRIMARY KEY,
+      semester_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      description TEXT,
+      sort_order INTEGER NOT NULL,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (semester_id) REFERENCES semesters(id)
+    );
+
     CREATE TABLE IF NOT EXISTS subjects (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       semester TEXT NOT NULL,
       description TEXT,
-      category TEXT
+      category TEXT,
+      module_id TEXT,
+      semester_id TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
 
     CREATE TABLE IF NOT EXISTS courses (
@@ -51,12 +72,16 @@ function initializeDatabase() {
       title TEXT NOT NULL,
       description TEXT,
       subject_id TEXT,
+      module_id TEXT,
+      semester_id TEXT,
       semester TEXT,
       type TEXT,
       category TEXT DEFAULT 'Autre',
       author TEXT,
       file_name TEXT,
       file_path TEXT,
+      file_url TEXT,
+      file_size INTEGER,
       status TEXT DEFAULT 'published',
       submitted_by TEXT,
       year INTEGER,
@@ -179,7 +204,7 @@ function initializeDatabase() {
   const documentColumns = [
     ['category', "TEXT DEFAULT 'Autre'"], ['status', "TEXT DEFAULT 'published'"], ['submitted_by', 'TEXT'], ['year', 'INTEGER'],
     ['tags', 'TEXT'], ['cover_image', 'TEXT'], ['reviewed_by', 'TEXT'],
-    ['reviewed_at', 'TEXT'], ['rejection_reason', 'TEXT']
+    ['reviewed_at', 'TEXT'], ['rejection_reason', 'TEXT'], ['module_id', 'TEXT'], ['semester_id', 'TEXT'], ['file_url', 'TEXT'], ['file_size', 'INTEGER']
   ];
   documentColumns.forEach(([name, definition]) => {
     try { db.exec(`ALTER TABLE documents ADD COLUMN ${name} ${definition}`); } catch (error) {
@@ -207,7 +232,89 @@ function initializeDatabase() {
       'user-1', 'Salma', 'Bensaid', 'student@pharmacampus.com', studentHash, 'user', 'Maroc', 'Rabat', 'Faculté de Médecine', 'Licence', 'S5', 'Étudiante en pharmacie, motivée par la pharmacologie et les examens pratiques.', 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80'
     );
 
-    const semesters = ['S1','S2','S3','S4','S5','S6','S7','S8','S9','S10'];
+    const semesterSeed = [
+      ['S1', 1, 1], ['S2', 1, 2], ['S3', 2, 1], ['S4', 2, 2], ['S5', 3, 1], ['S6', 3, 2], ['S7', 4, 1], ['S8', 4, 2], ['S9', 5, 1], ['S10', 5, 2]
+    ];
+    semesterSeed.forEach(([name, year, sortOrder]) => {
+      db.prepare('INSERT INTO semesters (id, name, year, sort_order) VALUES (?, ?, ?, ?)').run(name, name, year, sortOrder);
+    });
+
+    const moduleSeed = [
+      ['S1', 'Math / Info', 'Base mathématique et informatique utile à la pharmacie.', 1],
+      ['S1', 'Communication / Anglais', 'Langue et communication professionnelle.', 2],
+      ['S1', 'Chimie', 'Fondements de la chimie générale.', 3],
+      ['S1', 'Botanique', 'Étude des plantes et de leur organisation.', 4],
+      ['S1', 'Biologie végétale', 'Morphologie et physiologie végétale.', 5],
+      ['S1', 'Biologie cellulaire', 'Structure et fonctions cellulaires.', 6],
+      ['S2', 'Anatomie', 'Étude de l’organisation anatomique du corps humain.', 1],
+      ['S2', 'Langue Étrangère', 'Renforcement des compétences linguistiques.', 2],
+      ['S2', 'Chimie Analytique I', 'Méthodes analytiques fondamentales.', 3],
+      ['S2', 'Systématique Botanique', 'Classification des végétaux.', 4],
+      ['S2', 'Histologie / Embryologie', 'Organisation cellulaire et développement embryonnaire.', 5],
+      ['S2', 'Initiation à la Pharmacie', 'Découverte du métier pharmaceutique.', 6],
+      ['S3', 'Biochimie structurale', 'Étude des biomolécules et de leur structure.', 1],
+      ['S3', 'Chimie Analytique II', 'Techniques analytiques avancées.', 2],
+      ['S3', 'Chimie Organique II', 'Réactions organiques et mécanismes.', 3],
+      ['S3', 'Hématologie Biologique', 'Cellules sanguines et analyses biologiques.', 4],
+      ['S3', 'Microbiologie', 'Bactérie, virus et pathogènes.', 5],
+      ['S3', 'Physiologie Végétale', 'Fonctions essentielles des plantes.', 6],
+      ['S4', 'Anglais pour la Pharmacie', 'Approche terminologique et communication.', 1],
+      ['S4', 'Immunologie', 'Réponse immunitaire et protection de l’organisme.', 2],
+      ['S4', 'Chimie Analytique Instrumentale', 'Instrumentations et méthodes avancées.', 3],
+      ['S4', 'Bases de la Biotechnologie', 'Applications biotech et génie biologique.', 4],
+      ['S4', 'Chimie Organique II', 'Synthèse et réactions organiques.', 5],
+      ['S4', 'Pharmacologie Générale', 'Principes de la pharmacologie.', 6],
+      ['S5', 'Médecine sociale et santé publique', 'Santé publique et prévention.', 1],
+      ['S5', 'Essais Physicochimiques', 'Études des propriétés physicochimiques.', 2],
+      ['S5', 'Biochimie Métabolique', 'Métabolisme intermédiaire et enzymes.', 3],
+      ['S5', 'Microbiologie II / Immunologie', 'Microbiologie et défenses immunitaires.', 4],
+      ['S5', 'Parasitologie', 'Parasites et maladies associées.', 5],
+      ['S5', 'Pharmacie Galénique I', 'Préparation et formulation de médicaments.', 6],
+      ['S5', 'Pharmacologie Spéciale I', 'Médicaments et leurs usages spécifiques.', 7],
+      ['S6', 'Informatique et Systèmes d\'Aide', 'Outils numériques de gestion et aide à la décision.', 1],
+      ['S6', 'Méthodes d\'Analyse', 'Méthodes de dosage et exploitation des résultats.', 2],
+      ['S6', 'Pharmacie Hospitalière', 'Gestion des médicaments en hôpital.', 3],
+      ['S6', 'Toxicologie', 'Étude des intoxications et mécanismes toxiques.', 4],
+      ['S6', 'Chimie Thérapeutique I', 'Chimie des médicaments actifs.', 5],
+      ['S6', 'Langues Étrangères', 'Communication scientifique internationale.', 6],
+      ['S6', 'Pharmacognosie I', 'Plantes médicinales et principes actifs.', 7],
+      ['S6', 'Pharmacie Galénique II', 'Formulations avancées et contrôle qualité.', 8],
+      ['S7', 'Bromatologie - Hydrologie', 'Aliments, eau et contrôle qualité.', 1],
+      ['S7', 'Chimie Thérapeutique II', 'Médicaments et développement thérapeutique.', 2],
+      ['S7', 'Pharmacognosie spéciale et Essais', 'Études détaillées et essais des plantes médicinales.', 3],
+      ['S7', 'Pharmacologie Spéciale II', 'Approfondissement pharmacologique.', 4],
+      ['S7', 'Sémiologie Pathologique I', 'Manifestations pathologiques et signes cliniques.', 5],
+      ['S7', 'Toxicologie II', 'Toxicologie clinique et environnementale.', 6],
+      ['S8', 'Pharmacotechnie', 'Formulation et technologie pharmaceutique.', 1],
+      ['S8', 'Biochimie Clinique', 'Biomarqueurs et analyses biochimiques cliniques.', 2],
+      ['S8', 'Biochimie Pré-Instrumentale', 'Préparation et méthodes analytiques pré-analytique.', 3],
+      ['S8', 'Sémiologie Pathologique II', 'Anatomie pathologique et signes sémiologiques.', 4],
+      ['S8', 'Mycologie', 'Champignons pathogènes et leur étude.', 5],
+      ['S8', 'Hématologie II', 'Hématologie approfondie.', 6],
+      ['S9', 'Pharmacie clinique', 'Pharmacie de soins et suivi thérapeutique.', 1],
+      ['S9', 'Méthodologie de recherche', 'Méthodes quantitatives et qualitatives.', 2],
+      ['S9', 'Médicaments vétérinaires', 'Utilisation et sécurité des médicaments vétérinaires.', 3],
+      ['S9', 'Hygiène', 'Prévention et hygiène de santé.', 4],
+      ['S9', 'Droit pharmaceutique', 'Réglementation et cadre juridique.', 5],
+      ['S9', 'Applications de biotechnologie', 'Biotechnologies appliquées à la santé.', 6],
+      ['S10', 'Cosmétologie Médicale', 'Produits cosmétiques et soins de santé.', 1],
+      ['S10', 'Pharmacie Industrielle', 'Industrie et production pharmaceutique.', 2],
+      ['S10', 'Toxicologie d\'Urgence', 'Urgences toxiques et prise en charge.', 3],
+      ['S10', 'Gestion Pharmaceutique', 'Gestion des médicaments et des structures.', 4],
+      ['S10', 'Gestion de Projet / Management', 'Pilotage de projets et organisation.', 5],
+      ['S10', 'Nutrition Diététique', 'Alimentation, nutrition et santé publique.', 6]
+    ];
+
+    moduleSeed.forEach(([semesterName, name, description, sortOrder]) => {
+      const semester = db.prepare('SELECT id FROM semesters WHERE name = ?').get(semesterName);
+      if (!semester) return;
+      const moduleId = `${semesterName}-${name.replace(/[^a-zA-Z0-9]/g, '').slice(0, 18)}-${sortOrder}`;
+      db.prepare('INSERT INTO modules (id, semester_id, name, description, sort_order) VALUES (?, ?, ?, ?, ?)').run(moduleId, semester.id, name, description, sortOrder);
+      db.prepare('INSERT INTO subjects (id, name, semester, description, category, module_id, semester_id) VALUES (?, ?, ?, ?, ?, ?, ?)').run(
+        moduleId, name, semesterName, description, 'Module', moduleId, semester.id
+      );
+    });
+
     const subjects = [
       ['M1', 'Pharmacologie', 'S5', 'Étude des médicaments et de leurs mécanismes d’action.', 'Pharmacologie'],
       ['M2', 'Chimie', 'S5', 'Bases de la chimie pharmaceutique et analytique.', 'Chimie'],
@@ -220,7 +327,8 @@ function initializeDatabase() {
     ];
 
     subjects.forEach(([id, name, semester, description, category]) => {
-      db.prepare('INSERT INTO subjects (id, name, semester, description, category) VALUES (?, ?, ?, ?, ?)').run(id, name, semester, description, category);
+      const exists = db.prepare('SELECT id FROM subjects WHERE id = ?').get(id);
+      if (!exists) db.prepare('INSERT INTO subjects (id, name, semester, description, category) VALUES (?, ?, ?, ?, ?)').run(id, name, semester, description, category);
     });
 
     const courseList = [
@@ -236,12 +344,12 @@ function initializeDatabase() {
       }
     });
 
-    db.prepare('INSERT INTO documents (id, title, description, subject_id, semester, type, author, file_name, file_path, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(
-      'D1', 'Cours de pharmacologie S5', 'Support de cours complet sur les mécanismes d’action et les classes pharmacologiques.', 'M1', 'S5', 'PDF', 'Dr. H. Amrani', 'cours-pharmacologie-s5.pdf', '/uploads/sample.pdf', new Date().toISOString()
+    db.prepare('INSERT INTO documents (id, title, description, subject_id, module_id, semester_id, semester, type, author, file_name, file_path, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(
+      'D1', 'Cours de pharmacologie S5', 'Support de cours complet sur les mécanismes d’action et les classes pharmacologiques.', 'M1', 'S5-Pharmacologie1', (db.prepare('SELECT id FROM semesters WHERE name = ?').get('S5')).id, 'S5', 'PDF', 'Dr. H. Amrani', 'cours-pharmacologie-s5.pdf', '/uploads/sample.pdf', new Date().toISOString()
     );
 
-    db.prepare('INSERT INTO documents (id, title, description, subject_id, semester, type, author, file_name, file_path, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(
-      'D2', 'Méthodes de dosage et dosage', 'Document pratique sur les méthodes de dosage et l’interprétation des résultats.', 'M2', 'S5', 'PDF', 'Pr. N. El Idrissi', 'dosage-pharmacie.pdf', '/uploads/sample.pdf', new Date().toISOString()
+    db.prepare('INSERT INTO documents (id, title, description, subject_id, module_id, semester_id, semester, type, author, file_name, file_path, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(
+      'D2', 'Méthodes de dosage et dosage', 'Document pratique sur les méthodes de dosage et l’interprétation des résultats.', 'M2', 'S5-Chimie1', (db.prepare('SELECT id FROM semesters WHERE name = ?').get('S5')).id, 'S5', 'PDF', 'Pr. N. El Idrissi', 'dosage-pharmacie.pdf', '/uploads/sample.pdf', new Date().toISOString()
     );
 
     db.prepare('INSERT INTO exams (id, title, subject_id, semester, year, file_name, file_path, answer_file_name, answer_file_path, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(
