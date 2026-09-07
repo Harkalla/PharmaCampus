@@ -51,6 +51,7 @@ const RegisterPage = ({ onLogin }: RegisterPageProps) => {
     photoUrl: ''
   });
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   const handleChange = (field: string, value: string) => setForm((current) => ({ ...current, [field]: value, ...(field === 'country' ? { city: '', cityOther: '', university: '', universityOther: '' } : {}), ...(field === 'city' ? { university: '', universityOther: '' } : {}) }));
 
@@ -66,6 +67,7 @@ const RegisterPage = ({ onLogin }: RegisterPageProps) => {
     }
 
     setError('');
+    setSuccess('');
     try {
       const response = await signUpWithSupabase({
         email: form.email,
@@ -81,7 +83,7 @@ const RegisterPage = ({ onLogin }: RegisterPageProps) => {
         photoUrl: form.photoUrl
       });
       if (response.user) onLogin(response.user, response.token);
-      else setError('Compte créé. Vérifiez votre adresse email avant de vous connecter.');
+      else setSuccess('Votre compte a été créé. Veuillez confirmer votre adresse email avant de vous connecter.');
     } catch (err) {
       setError((err as Error).message);
     }
@@ -188,6 +190,7 @@ const RegisterPage = ({ onLogin }: RegisterPageProps) => {
           </div>
 
           {error && <div className="md:col-span-2 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+          {success && <div className="md:col-span-2 rounded-xl bg-emerald-400/10 px-3 py-3 text-sm text-emerald-200">{success} <Link to="/login" className="font-bold underline">Aller à la connexion</Link></div>}
 
           <div className="md:col-span-2 flex gap-3">
             <button type="submit" className="primary-btn flex-1">Créer mon compte</button>

@@ -91,9 +91,6 @@ export async function signInWithSupabase(email: string, password: string): Promi
 
   const { data, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
   if (error) {
-    if (window.location.hostname === 'localhost' && error.message.toLowerCase().includes('invalid login credentials')) {
-      return apiFetch<AuthResponse>('/auth/login', { method: 'POST', body: JSON.stringify({ email: normalizedEmail, password }) });
-    }
     if (error.message.toLowerCase().includes('email not confirmed')) {
       throw new Error('Votre email n’est pas encore confirmé. Consultez votre boîte de réception.');
     }
