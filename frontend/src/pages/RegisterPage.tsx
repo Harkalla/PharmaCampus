@@ -15,7 +15,32 @@ const countryCities: Record<string, string[]> = {
 };
 
 const countries = Object.keys(countryCities);
-const facultiesByCity: Record<string, string[]> = { Casablanca: ['Université Hassan II'] };
+const facultiesByCity: Record<string, string[]> = {
+  Niamey: ['Faculté des Sciences de la Santé de Niamey'], Maradi: ['Faculté des Sciences de la Santé de Maradi'], Zinder: ['Faculté des Sciences de la Santé de Zinder'],
+  Bamako: ['Faculté de Médecine et d’Odonto-Stomatologie', 'Faculté de Pharmacie de Bamako'], Sikasso: ['Institut de Formation en Sciences de la Santé de Sikasso'], Mopti: ['Institut de Formation en Sciences de la Santé de Mopti'],
+  Dakar: ['Faculté de Médecine, de Pharmacie et d’Odontologie de Dakar'], Thiès: ['UFR Santé de l’Université de Thiès'], 'Saint-Louis': ['UFR de Santé de l’Université Gaston Berger'],
+  Yamoussoukro: ['UFR des Sciences Médicales de Yamoussoukro'], Abidjan: ['UFR des Sciences Médicales d’Abidjan', 'UFR des Sciences Pharmaceutiques'], Bouaké: ['UFR des Sciences Médicales de Bouaké'],
+  Ouagadougou: ['UFR des Sciences de la Santé de Ouagadougou'], 'Bobo-Dioulasso': ['Institut Supérieur des Sciences de la Santé de Bobo-Dioulasso'], Koudougou: ['École Supérieure des Sciences de la Santé de Koudougou'],
+  Conakry: ['Faculté des Sciences et Techniques de la Santé de Conakry'], Nzérékoré: ['Institut Supérieur des Sciences de la Santé de Nzérékoré'], Kindia: ['Institut Supérieur des Sciences de la Santé de Kindia'],
+  'Porto-Novo': ['Faculté des Sciences de la Santé de Porto-Novo'], Cotonou: ['Faculté des Sciences de la Santé de Cotonou'], 'Abomey-Calavi': ['Faculté des Sciences de la Santé d’Abomey-Calavi'],
+  Lomé: ['Faculté des Sciences de la Santé de Lomé'], Sokodé: ['École des Assistants Médicaux de Sokodé'], Kara: ['Faculté des Sciences de la Santé de Kara'],
+  Accra: ['University of Ghana Medical School'], Kumasi: ['KNUST School of Medical Sciences'], Tamale: ['University for Development Studies School of Medicine'],
+  Abuja: ['University of Abuja College of Health Sciences'], Lagos: ['University of Lagos College of Medicine'], Kano: ['Bayero University Faculty of Pharmaceutical Sciences'],
+  Nouakchott: ['Faculté de Médecine de Nouakchott'], Nouadhibou: ['Institut Supérieur des Sciences de la Santé de Nouadhibou'], Rosso: ['Établissement de santé de Rosso'],
+  Yaoundé: ['Faculté de Médecine et des Sciences Biomédicales de Yaoundé'], Douala: ['Faculté de Médecine et des Sciences Pharmaceutiques de Douala'], Bafoussam: ['Faculté des Sciences de la Santé de Bafoussam'],
+  "N'Djamena": ['Faculté des Sciences de la Santé de N’Djamena'], Moundou: ['Institut Universitaire des Sciences de la Santé de Moundou'], Sarh: ['Institut des Sciences de la Santé de Sarh'],
+  Bangui: ['Faculté des Sciences de la Santé de Bangui'], Bimbo: ['Institut des Sciences de la Santé de Bimbo'], Berbérati: ['Institut de Formation en Sciences de la Santé de Berbérati'],
+  Kinshasa: ['Faculté de Médecine de l’Université de Kinshasa', 'Faculté de Pharmacie de Kinshasa'], Lubumbashi: ['Faculté de Médecine de Lubumbashi'], Goma: ['Faculté de Médecine de Goma'],
+  Brazzaville: ['Faculté des Sciences de la Santé de Brazzaville'], 'Pointe-Noire': ['Faculté des Sciences de la Santé de Pointe-Noire'], Dolisie: ['Institut de Formation en Sciences de la Santé de Dolisie'],
+  Libreville: ['Faculté de Médecine de Libreville'], 'Port-Gentil': ['Institut de Formation en Sciences de la Santé de Port-Gentil'], Franceville: ['Institut de Formation en Sciences de la Santé de Franceville'],
+  Rabat: ['Faculté de Médecine et de Pharmacie de Rabat'], Casablanca: ['Faculté de Médecine et de Pharmacie de Casablanca', 'Université Hassan II'], Fès: ['Faculté de Médecine, de Pharmacie et de Médecine Dentaire de Fès'],
+  Alger: ['Faculté de Médecine d’Alger', 'Faculté de Pharmacie d’Alger'], Oran: ['Faculté de Médecine d’Oran'], Constantine: ['Faculté de Médecine de Constantine'],
+  Tunis: ['Faculté de Médecine de Tunis', 'Faculté de Pharmacie de Monastir'], Sfax: ['Faculté de Médecine de Sfax'], Sousse: ['Faculté de Médecine de Sousse'],
+  Paris: ['Faculté de Médecine de Paris'], Lyon: ['Faculté de Médecine de Lyon'], Marseille: ['Faculté de Médecine de Marseille'],
+  Bruxelles: ['Faculté de Médecine de Bruxelles'], Anvers: ['Faculty of Medicine and Health Sciences Antwerp'], Liège: ['Faculté de Médecine de Liège'],
+  Ottawa: ['Faculty of Medicine, University of Ottawa'], Montréal: ['Faculté de médecine de l’Université de Montréal'], Toronto: ['Temerty Faculty of Medicine'],
+  Berne: ['Faculty of Medicine, University of Bern'], Genève: ['Faculté de médecine de Genève'], Zurich: ['Faculty of Medicine, University of Zurich']
+};
 
 const RegisterPage = ({ onLogin }: RegisterPageProps) => {
   const [showPassword, setShowPassword] = useState(false);
@@ -95,7 +120,7 @@ const RegisterPage = ({ onLogin }: RegisterPageProps) => {
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-300">Niveau d’études</label>
-            <select className="input" value={form.level} onChange={(e) => handleChange('level', e.target.value)} required><option value="">Sélectionner un niveau</option>{Array.from({ length: 10 }, (_, index) => <option key={index} value={`S${index + 1}`}>S{index + 1}</option>)}</select>
+            <select className="input" value={form.level} onChange={(e) => handleChange('level', e.target.value)} required><option value="">Sélectionner une année</option><option value="1ère année">1ère année</option><option value="2ème année">2ème année</option><option value="3ème année">3ème année</option><option value="4ème année">4ème année</option><option value="5ème année">5ème année</option><option value="6ème année">6ème année</option></select>
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-300">Semestre</label>

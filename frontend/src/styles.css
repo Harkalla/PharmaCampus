@@ -64,6 +64,12 @@ html[data-theme='light'] .text-slate-300 { color: #334e49; }
 html[data-theme='light'] .text-slate-400,
 html[data-theme='light'] .text-slate-500 { color: #58706b; }
 
+html[data-theme='light'] select.input {
+  color-scheme: light;
+  color: #10231f;
+  background-color: #ffffff;
+}
+
 @media (prefers-color-scheme: light) {
   html[data-theme='system'] body { color: #10231f; background: linear-gradient(180deg, #f4faf8 0%, #e5f2ee 100%); }
 }
@@ -74,6 +80,17 @@ html[data-theme='light'] .text-slate-500 { color: #58706b; }
 
 .input {
   @apply w-full rounded-xl border border-white/10 bg-black/20 px-3 py-3 text-sm text-emerald-50 outline-none transition placeholder:text-slate-500 focus:border-brand-400 focus:ring-2 focus:ring-brand-400/20;
+}
+
+select.input {
+  color-scheme: dark;
+  color: #e7f1ed;
+  background-color: #10231f;
+}
+
+select.input:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .badge {
