@@ -261,3 +261,176 @@ export async function getSupabaseSessionUser() {
     token: session.access_token
   };
 }
+
+export async function createAdminDocument(payload: {
+  title: string;
+  description?: string;
+  category?: string;
+  moduleId: string;
+  semester: string;
+  type: string;
+  file?: File | null;
+  fileUrl?: string;
+}) {
+  if (!supabase) return null;
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Session Supabase requise.');
+
+  const { data: profile, error: profileError } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+  if (profileError || profile?.role !== 'admin') throw new Error('Accès réservé à l’administrateur.');
+
+  let filePath = payload.fileUrl || null;
+  let fileSize = null;
+  let fileName = payload.file?.name || payload.fileUrl || null;
+
+  if (payload.file) {
+    const safeName = payload.file.name.toLowerCase().replace(/[^a-z0-9.]+/g, '-');
+    filePath = `${payload.semester}/${payload.moduleId}/${crypto.randomUUID()}-${safeName}`;
+    fileSize = payload.file.size;
+    const { error: uploadError } = await supabase.storage.from('pharmacampus-documents').upload(filePath, payload.file, { upsert: false, contentType: payload.file.type });
+    if (uploadError) throw new Error(`Upload Storage impossible : ${uploadError.message}`);
+  }
+
+  const { data: module, error: moduleError } = await supabase.from('modules').select('id, semester_id').eq('id', payload.moduleId).single();
+  if (moduleError || !module) throw new Error('Module Supabase introuvable.');
+
+  const { data, error } = await supabase.from('documents').insert({
+    title: payload.title,
+    description: payload.description || '',
+    module_id: module.id,
+    semester_id: module.semester_id,
+    semester: payload.semester,
+    type: payload.type,
+    category: payload.category || 'Autre',
+    file_name: fileName,
+    file_path: filePath,
+    file_url: payload.fileUrl || null,
+    file_size: fileSize,
+    status: 'published',
+    submitted_by: user.id,
+    author: user.user_metadata?.first_name ? `${user.user_metadata.first_name} ${user.user_metadata.last_name || ''}`.trim() : 'Administrateur'
+  }).select().single();
+
+  if (error) {
+    if (payload.file && filePath) await supabase.storage.from('pharmacampus-documents').remove([filePath]);
+    throw new Error(`Enregistrement Supabase impossible : ${error.message}`);
+  }
+  return data;
+}
+
+export async function createStudentContribution(payload: {
+  title: string;
+  description?: string;
+  moduleId: string;
+  semester: string;
+  category: string;
+  type: string;
+  year?: number;
+  file: File;
+}) {
+  if (!supabase) return null;
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Session Supabase requise.');
+  if (payload.file.size > 20 * 1024 * 1024) throw new Error('Le fichier ne doit pas dépasser 20 Mo.');
+
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+  if (profile?.role === 'admin') throw new Error('Un administrateur ne peut pas envoyer une proposition étudiante.');
+
+  const { data: subject } = await supabase.from('subjects').select('id').eq('module_id', payload.moduleId).maybeSingle();
+  const { data: module } = await supabase.from('modules').select('semester_id').eq('id', payload.moduleId).single();
+  const safeName = payload.file.name.toLowerCase().replace(/[^a-z0-9.]+/g, '-');
+  const filePath = `contributions/${payload.semester}/${payload.moduleId}/${crypto.randomUUID()}-${safeName}`;
+  const { error: uploadError } = await supabase.storage.from('pharmacampus-documents').upload(filePath, payload.file, { upsert: false, contentType: payload.file.type });
+  if (uploadError) throw new Error(`Upload impossible : ${uploadError.message}`);
+
+  const { data, error } = await supabase.from('document_contributions').insert({
+    user_id: user.id,
+    title: payload.title,
+    description: payload.description || '',
+    subject_id: subject?.id || null,
+    module_id: payload.moduleId,
+    semester_id: module?.semester_id || null,
+    semester: payload.semester,
+    category: payload.category,
+    type: payload.type,
+    year: payload.year || null,
+    file_name: payload.file.name,
+    file_path: filePath,
+    file_size: payload.file.size,
+    status: 'pending'
+  }).select().single();
+  if (error) {
+    await supabase.storage.from('pharmacampus-documents').remove([filePath]);
+    throw new Error(`Proposition impossible à enregistrer : ${error.message}`);
+  }
+  return data;
+}
+
+export async function fetchMySupabaseContributions() {
+  if (!supabase) return null;
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Session Supabase requise.');
+  const { data, error } = await supabase.from('document_contributions').select('*').eq('user_id', user.id).order('created_at', { ascending: false });
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function fetchPendingSupabaseContributions() {
+  if (!supabase) return null;
+  const { data, error } = await supabase.from('document_contributions').select('*').eq('status', 'pending').order('created_at', { ascending: true });
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+export async function fetchSupabaseAdminSummary() {
+  if (!supabase) return null;
+  const tables = ['profiles', 'subjects', 'documents', 'courses', 'exams', 'quizzes', 'medicines'] as const;
+  const counts = await Promise.all(tables.map(async (table) => {
+    const { count, error } = await supabase.from(table).select('*', { count: 'exact', head: true });
+    if (error) throw new Error(error.message);
+    return count || 0;
+  }));
+  const { count: pendingDocuments, error: pendingError } = await supabase.from('document_contributions').select('*', { count: 'exact', head: true }).eq('status', 'pending');
+  if (pendingError) throw new Error(pendingError.message);
+  const { count: publishedDocuments, error: publishedError } = await supabase.from('documents').select('*', { count: 'exact', head: true }).eq('status', 'published');
+  if (publishedError) throw new Error(publishedError.message);
+  return { counts: { users: counts[0], subjects: counts[1], documents: counts[2], courses: counts[3], exams: counts[4], quizzes: counts[5], medicines: counts[6], publishedDocuments: publishedDocuments || 0, pendingDocuments: pendingDocuments || 0, refusedDocuments: 0, suggestions: 0, reports: 0 } };
+}
+
+export async function reviewSupabaseContribution(id: string, status: 'published' | 'refused', rejectionReason?: string) {
+  if (!supabase) return null;
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Session Supabase requise.');
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
+  if (profile?.role !== 'admin') throw new Error('Accès réservé à l’administrateur.');
+
+  const { data: contribution, error: contributionError } = await supabase.from('document_contributions').select('*').eq('id', id).single();
+  if (contributionError || !contribution) throw new Error('Proposition introuvable.');
+
+  if (status === 'published') {
+    const { error: documentError } = await supabase.from('documents').insert({
+      title: contribution.title,
+      description: contribution.description,
+      subject_id: contribution.subject_id,
+      module_id: contribution.module_id,
+      semester_id: contribution.semester_id,
+      semester: contribution.semester,
+      category: contribution.category,
+      type: contribution.type,
+      file_name: contribution.file_name,
+      file_path: contribution.file_path,
+      file_size: contribution.file_size,
+      status: 'published',
+      submitted_by: contribution.user_id,
+      year: contribution.year,
+      reviewed_by: user.id,
+      reviewed_at: new Date().toISOString()
+    });
+    if (documentError) throw new Error(`Publication impossible : ${documentError.message}`);
+  }
+
+  const { error } = await supabase.from('document_contributions').update({ status, rejection_reason: rejectionReason || null, reviewed_by: user.id, reviewed_at: new Date().toISOString() }).eq('id', id);
+  if (error) throw new Error(error.message);
+  return true;
+}

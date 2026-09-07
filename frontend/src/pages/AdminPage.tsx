@@ -3,6 +3,7 @@ import Layout from '../components/Layout';
 import { apiFetch } from '../lib/api';
 import { DocumentItem, User } from '../types';
 import { formatDate } from '../lib/api';
+import { fetchPendingSupabaseContributions, fetchSupabaseAdminSummary, reviewSupabaseContribution, supabase } from '../lib/supabase';
 
 type AdminPageProps = { user: User; onLogout: () => void; };
 
@@ -32,11 +33,20 @@ const AdminPage = ({ user, onLogout }: AdminPageProps) => {
   const [categories, setCategories] = useState<Record<string, string>>({});
   const [error, setError] = useState('');
 
-  const loadData = () => Promise.all([
+  const loadData = async () => {
+    if (supabase) {
+      const [summary, documents] = await Promise.all([fetchSupabaseAdminSummary(), fetchPendingSupabaseContributions()]);
+      setData(summary as AdminData);
+      setPending((documents || []) as PendingDocument[]);
+      setPublished([]);
+      return;
+    }
+    return Promise.all([
     apiFetch<AdminData>('/admin/summary'),
     apiFetch<{ documents: PendingDocument[] }>('/admin/documents/pending'),
     apiFetch<{ documents: PendingDocument[] }>('/admin/documents')
-  ]).then(([summary, documents, allDocuments]) => { setData(summary); setPending(documents.documents); setPublished(allDocuments.documents.filter((document) => document.status === 'published')); });
+    ]).then(([summary, documents, allDocuments]) => { setData(summary); setPending(documents.documents); setPublished(allDocuments.documents.filter((document) => document.status === 'published')); });
+  };
 
   useEffect(() => {
     loadData().catch((err) => setError((err as Error).message));
@@ -49,7 +59,8 @@ const AdminPage = ({ user, onLogout }: AdminPageProps) => {
       if (!rejectionReason) return;
     }
     try {
-      await apiFetch(`/admin/documents/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status, rejectionReason, category: categories[id] || 'Autre' }) });
+      if (supabase) await reviewSupabaseContribution(id, status, rejectionReason);
+      else await apiFetch(`/admin/documents/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status, rejectionReason, category: categories[id] || 'Autre' }) });
       await loadData();
     } catch (err) { setError((err as Error).message); }
   };

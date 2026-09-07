@@ -3,6 +3,7 @@ import Layout from '../components/Layout';
 import { apiFetch, formatDate } from '../lib/api';
 import { fetchSubjects } from '../lib/pharmaData';
 import { DocumentItem, Subject, User } from '../types';
+import { createStudentContribution, fetchMySupabaseContributions, supabase } from '../lib/supabase';
 
 type ContributionsPageProps = { user: User; onLogout: () => void };
 
@@ -20,7 +21,15 @@ const ContributionsPage = ({ user, onLogout }: ContributionsPageProps) => {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
-  const loadDocuments = () => apiFetch<{ documents: Contribution[] }>('/documents/mine').then((response) => setDocuments(response.documents));
+  const loadDocuments = async () => {
+    if (supabase) {
+      const response = await fetchMySupabaseContributions();
+      setDocuments((response || []) as Contribution[]);
+      return;
+    }
+    const response = await apiFetch<{ documents: Contribution[] }>('/documents/mine');
+    setDocuments(response.documents);
+  };
 
   useEffect(() => {
     Promise.all([fetchSubjects(), loadDocuments()]).then(([items]) => setSubjects(items)).catch((err) => setError((err as Error).message));
@@ -32,10 +41,15 @@ const ContributionsPage = ({ user, onLogout }: ContributionsPageProps) => {
     setError('');
     if (!file) { setError('Sélectionnez un fichier à envoyer.'); return; }
     const body = new FormData();
-    Object.entries(form).forEach(([key, value]) => body.append(key, value));
-    body.append('file', file);
     try {
-      await apiFetch('/documents/contribute', { method: 'POST', body });
+      if (supabase) {
+        await createStudentContribution({ title: form.title, description: form.description, moduleId: form.subjectId, semester: form.semester, category: form.category, type: form.type, year: Number(form.year), file });
+      } else {
+        const body = new FormData();
+        Object.entries(form).forEach(([key, value]) => body.append(key, value));
+        body.append('file', file);
+        await apiFetch('/documents/contribute', { method: 'POST', body });
+      }
       setMessage('Votre document a été envoyé. Il est maintenant en attente de validation.');
       setForm((current) => ({ ...current, title: '', description: '' }));
       setFile(null);
@@ -51,7 +65,7 @@ const ContributionsPage = ({ user, onLogout }: ContributionsPageProps) => {
           <input className="input" placeholder="Titre du document" value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} required />
           <div className="grid gap-3 sm:grid-cols-2">
             <select className="input" value={form.semester} onChange={(event) => setForm({ ...form, semester: event.target.value })}>{Array.from({ length: 10 }, (_, index) => `S${index + 1}`).map((semester) => <option key={semester}>{semester}</option>)}</select>
-            <select className="input" value={form.subjectId} onChange={(event) => setForm({ ...form, subjectId: event.target.value })} required><option value="">Matière</option>{subjects.filter((subject) => subject.semester === form.semester).map((subject) => <option key={subject.id} value={subject.id}>{subject.name}</option>)}</select>
+            <select className="input" value={form.subjectId} onChange={(event) => setForm({ ...form, subjectId: event.target.value })} required><option value="">Matière</option>{subjects.filter((subject) => subject.semester === form.semester).map((subject) => <option key={subject.id} value={subject.module_id || subject.id}>{subject.name}</option>)}</select>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <select className="input" value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })}><option>Cours</option><option>Examen</option><option>Corrigé</option><option>TP</option><option>QCM</option><option>Autre</option></select>

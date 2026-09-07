@@ -2,6 +2,12 @@ import { supabase } from './supabase';
 import { apiFetch } from './api';
 import { Subject, DocumentItem, Medicine, QuestionItem } from '../types';
 
+async function resolveDocumentUrl(document: DocumentItem): Promise<DocumentItem> {
+  if (!supabase || !document.file_path || document.file_path.startsWith('http')) return document;
+  const { data } = await supabase.storage.from('pharmacampus-documents').createSignedUrl(document.file_path, 3600);
+  return data?.signedUrl ? { ...document, file_url: data.signedUrl } : document;
+}
+
 export async function fetchSubjects(semester?: string): Promise<Subject[]> {
   try {
     const response = await apiFetch<{ subjects: Subject[] }>(semester ? `/subjects?semester=${encodeURIComponent(semester)}` : '/subjects');
@@ -35,7 +41,8 @@ export async function fetchSubjectById(subjectId: string) {
         supabase.from('exams').select('*').eq('subject_id', subjectId),
         supabase.from('quizzes').select('*').eq('subject_id', subjectId)
       ]);
-      return { subject, courses: courses || [], documents: documents || [], exams: exams || [], quizzes: quizzes || [] };
+      const resolvedDocuments = await Promise.all((documents || []).map(resolveDocumentUrl));
+      return { subject, courses: courses || [], documents: resolvedDocuments, exams: exams || [], quizzes: quizzes || [] };
     }
   }
 
@@ -47,7 +54,7 @@ export async function fetchDocuments(query?: string): Promise<DocumentItem[]> {
     let q = supabase.from('documents').select('*').eq('status', 'published');
     if (query) q = q.or(`title.ilike.%${query}%,description.ilike.%${query}%`);
     const { data, error } = await q.order('created_at', { ascending: false });
-    if (!error && data) return data as DocumentItem[];
+    if (!error && data) return Promise.all((data as DocumentItem[]).map(resolveDocumentUrl));
   }
 
   const response = await apiFetch<{ documents: DocumentItem[] }>(query ? `/documents?q=${encodeURIComponent(query)}` : '/documents');

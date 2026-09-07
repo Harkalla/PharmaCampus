@@ -52,6 +52,13 @@ create table if not exists public.courses (
   subject_id uuid not null references public.subjects(id) on delete cascade,
   semester text,
   level text,
+  category text default 'Cours',
+  author text,
+  file_name text,
+  file_path text,
+  file_url text,
+  file_size bigint,
+  status text not null default 'published' check (status in ('draft','published','archived')),
   created_at timestamptz not null default now()
 );
 
@@ -86,6 +93,8 @@ create table if not exists public.exams (
   id uuid primary key default uuid_generate_v4(),
   title text not null,
   subject_id uuid references public.subjects(id) on delete cascade,
+  module_id text references public.modules(id) on delete set null,
+  semester_id text references public.semesters(id) on delete set null,
   semester text,
   year integer,
   file_name text,
@@ -108,6 +117,8 @@ create table if not exists public.quizzes (
   id uuid primary key default uuid_generate_v4(),
   title text not null,
   subject_id uuid references public.subjects(id) on delete set null,
+  module_id text references public.modules(id) on delete set null,
+  semester_id text references public.semesters(id) on delete set null,
   semester text,
   created_at timestamptz not null default now()
 );
@@ -146,6 +157,46 @@ create table if not exists public.medicines (
   forms text,
   image text,
   created_at timestamptz not null default now()
+);
+
+create table if not exists public.practicals (
+  id uuid primary key default uuid_generate_v4(),
+  title text not null,
+  module_id text references public.modules(id) on delete cascade,
+  semester_id text references public.semesters(id) on delete cascade,
+  objectives text,
+  materials text,
+  protocol text,
+  expected_results text,
+  report_instructions text,
+  document_id uuid references public.documents(id) on delete set null,
+  status text not null default 'published' check (status in ('draft','published','archived')),
+  created_by uuid references public.profiles(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.revision_questions (
+  id uuid primary key default uuid_generate_v4(),
+  module_id text references public.modules(id) on delete cascade,
+  semester_id text references public.semesters(id) on delete cascade,
+  question text not null,
+  answer text,
+  explanation text,
+  difficulty text default 'Moyenne',
+  status text not null default 'published' check (status in ('draft','published','archived')),
+  created_by uuid references public.profiles(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.user_progress (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  module_id text references public.modules(id) on delete cascade,
+  resource_type text not null,
+  resource_id uuid,
+  viewed_at timestamptz not null default now(),
+  unique(user_id, resource_type, resource_id)
 );
 
 create table if not exists public.posts (
@@ -201,6 +252,19 @@ create table if not exists public.suggestions (
   created_at timestamptz not null default now()
 );
 
+alter table public.courses add column if not exists category text default 'Cours';
+alter table public.courses add column if not exists author text;
+alter table public.courses add column if not exists file_name text;
+alter table public.courses add column if not exists file_path text;
+alter table public.courses add column if not exists file_url text;
+alter table public.courses add column if not exists file_size bigint;
+alter table public.courses add column if not exists status text not null default 'published';
+alter table public.documents add column if not exists updated_at timestamptz not null default now();
+alter table public.exams add column if not exists module_id text references public.modules(id) on delete set null;
+alter table public.exams add column if not exists semester_id text references public.semesters(id) on delete set null;
+alter table public.quizzes add column if not exists module_id text references public.modules(id) on delete set null;
+alter table public.quizzes add column if not exists semester_id text references public.semesters(id) on delete set null;
+
 create or replace function public.is_admin()
 returns boolean
 language sql
@@ -225,6 +289,9 @@ alter table public.quizzes enable row level security;
 alter table public.quiz_questions enable row level security;
 alter table public.quiz_results enable row level security;
 alter table public.medicines enable row level security;
+alter table public.practicals enable row level security;
+alter table public.revision_questions enable row level security;
+alter table public.user_progress enable row level security;
 alter table public.posts enable row level security;
 alter table public.comments enable row level security;
 alter table public.messages enable row level security;
@@ -291,12 +358,15 @@ create table if not exists public.document_contributions (
   title text not null,
   description text,
   subject_id uuid references public.subjects(id) on delete set null,
+  module_id text references public.modules(id) on delete set null,
+  semester_id text references public.semesters(id) on delete set null,
   semester text,
   category text not null default 'Autre',
   type text,
   year integer,
   file_name text not null,
   file_path text not null,
+  file_size bigint,
   status text not null default 'pending' check (status in ('pending','published','refused','archived')),
   rejection_reason text,
   reviewed_by uuid references public.profiles(id) on delete set null,
@@ -305,6 +375,9 @@ create table if not exists public.document_contributions (
 );
 
 alter table public.document_contributions enable row level security;
+alter table public.document_contributions add column if not exists module_id text references public.modules(id) on delete set null;
+alter table public.document_contributions add column if not exists semester_id text references public.semesters(id) on delete set null;
+alter table public.document_contributions add column if not exists file_size bigint;
 drop policy if exists "Students can create contributions" on public.document_contributions;
 create policy "Students can create contributions" on public.document_contributions
 for insert with check (auth.uid() = user_id and not public.is_admin());
@@ -319,10 +392,22 @@ insert into storage.buckets (id, name, public)
 values ('pharmacampus-documents', 'pharmacampus-documents', false)
 on conflict (id) do nothing;
 
+insert into storage.buckets (id, name, public)
+values ('pharmacampus-images', 'pharmacampus-images', false),
+       ('pharmacampus-exams', 'pharmacampus-exams', false)
+on conflict (id) do nothing;
+
 drop policy if exists "Authenticated users can read published resources" on storage.objects;
 create policy "Authenticated users can read published resources" on storage.objects
 for select to authenticated
-using (bucket_id = 'pharmacampus-documents');
+using (
+  bucket_id = 'pharmacampus-documents'
+  and (
+    public.is_admin()
+    or exists (select 1 from public.documents d where d.file_path = name and d.status = 'published')
+    or exists (select 1 from public.document_contributions c where c.file_path = name and c.user_id = auth.uid())
+  )
+);
 
 drop policy if exists "Admins can upload resources" on storage.objects;
 create policy "Admins can upload resources" on storage.objects
@@ -387,6 +472,27 @@ for select using (true);
 drop policy if exists "Admins can manage medicines" on public.medicines;
 create policy "Admins can manage medicines" on public.medicines
 for all using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "Anyone can read published practicals" on public.practicals;
+create policy "Anyone can read published practicals" on public.practicals
+for select using (status = 'published' or public.is_admin());
+drop policy if exists "Admins can manage practicals" on public.practicals;
+create policy "Admins can manage practicals" on public.practicals
+for all using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "Anyone can read published revision questions" on public.revision_questions;
+create policy "Anyone can read published revision questions" on public.revision_questions
+for select using (status = 'published' or public.is_admin());
+drop policy if exists "Admins can manage revision questions" on public.revision_questions;
+create policy "Admins can manage revision questions" on public.revision_questions
+for all using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "Users can read own progress" on public.user_progress;
+create policy "Users can read own progress" on public.user_progress
+for select using (auth.uid() = user_id or public.is_admin());
+drop policy if exists "Users can write own progress" on public.user_progress;
+create policy "Users can write own progress" on public.user_progress
+for insert with check (auth.uid() = user_id);
 
 drop policy if exists "Anyone can read posts" on public.posts;
 create policy "Anyone can read posts" on public.posts

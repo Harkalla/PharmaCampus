@@ -6,6 +6,7 @@ import { apiFetch } from '../lib/api';
 import { Course } from '../types';
 import { Subject, User } from '../types';
 import { BookOpen, FileImage, FileText, Link2 } from 'lucide-react';
+import { createAdminDocument, supabase } from '../lib/supabase';
 
 type SubjectsPageProps = { user: User; onLogout: () => void; };
 
@@ -59,7 +60,11 @@ const SubjectsPage = ({ user, onLogout }: SubjectsPageProps) => {
     if (resourceUrl) body.append('fileUrl', resourceUrl);
     if (resourceFile) body.append('file', resourceFile);
     try {
-      await apiFetch('/admin/documents', { method: 'POST', body });
+      if (supabase) {
+        await createAdminDocument({ title: resourceTitle, description: resourceDescription, category: resourceCategory, moduleId: resourceModule, semester: currentSemester, type: resourceKind === 'image' ? 'Image' : resourceKind === 'url' ? 'URL' : 'Document', file: resourceFile, fileUrl: resourceUrl || undefined });
+      } else {
+        await apiFetch('/admin/documents', { method: 'POST', body });
+      }
       setResourceKind(null);
       const refreshed = await fetchSubjects(currentSemester);
       setSubjects(refreshed);
