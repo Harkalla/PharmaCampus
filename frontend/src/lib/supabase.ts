@@ -78,12 +78,21 @@ export async function signUpWithSupabase(payload: {
 }
 
 export async function signInWithSupabase(email: string, password: string): Promise<AuthResponse> {
+  const normalizedEmail = email.trim().toLowerCase();
+  if (!normalizedEmail || !password) throw new Error('Email et mot de passe requis.');
+
   if (!supabase) {
-    return apiFetch<AuthResponse>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
+    return apiFetch<AuthResponse>('/auth/login', { method: 'POST', body: JSON.stringify({ email: normalizedEmail, password }) });
   }
 
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) throw new Error(error.message);
+  const { data, error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
+  if (error) {
+    if (error.message.toLowerCase().includes('email not confirmed')) {
+      throw new Error('Votre email n’est pas encore confirmé. Consultez votre boîte de réception.');
+    }
+    throw new Error('Email ou mot de passe incorrect. Vérifiez vos identifiants Supabase.');
+  }
+  if (!data.session?.access_token || !data.user) throw new Error('Connexion réussie mais session Supabase absente.');
 
   const profileResponse = await supabase
     .from('profiles')
@@ -95,7 +104,7 @@ export async function signInWithSupabase(email: string, password: string): Promi
     id: data.user.id,
     first_name: data.user.user_metadata?.first_name || '',
     last_name: data.user.user_metadata?.last_name || '',
-    email: data.user.email,
+    email: data.user.email || normalizedEmail,
     country: data.user.user_metadata?.country || '',
     city: data.user.user_metadata?.city || '',
     university: data.user.user_metadata?.university || '',

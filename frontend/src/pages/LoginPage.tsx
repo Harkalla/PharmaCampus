@@ -38,12 +38,12 @@ const LoginPage = ({ onLogin }: LoginPageProps) => {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-300">Email</label>
-            <input className="input" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="nom@domaine.com" />
+            <input type="email" className="input" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="nom@domaine.com" autoComplete="email" required />
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-300">Mot de passe</label>
             <div className="relative">
-              <input type={showPassword ? 'text' : 'password'} className="input pr-24" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Mot de passe" required />
+              <input type={showPassword ? 'text' : 'password'} className="input pr-24" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Mot de passe" autoComplete="current-password" required />
               <button type="button" className="absolute inset-y-0 right-3 text-sm font-semibold text-brand-700" onClick={() => setShowPassword((visible) => !visible)} aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}>
                 {showPassword ? 'Masquer' : 'Afficher'}
               </button>
