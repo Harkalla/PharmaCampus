@@ -20,6 +20,7 @@ const navItems = [
 ];
 
 const Layout = ({ user, title, children, onLogout }: LayoutProps) => {
+  const isSemesterView = title.startsWith('Semestre');
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -48,7 +49,7 @@ const Layout = ({ user, title, children, onLogout }: LayoutProps) => {
     ];
 
   return (
-    <div className="min-h-screen bg-transparent text-slate-100">
+    <div className={`min-h-screen ${isSemesterView ? 'academic-page text-[#142438]' : 'bg-transparent text-slate-100'}`}>
       {menuOpen && <div className="fixed inset-0 z-50 bg-black/60" onClick={() => setMenuOpen(false)} />}
       <aside className={`fixed inset-y-0 left-0 z-[60] w-80 max-w-[86vw] border-r border-white/10 bg-[#071412] p-5 shadow-2xl transition-transform ${menuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="mb-7 flex items-center justify-between"><div className="text-xl font-black text-emerald-50">PharmaCampus</div><button className="secondary-btn px-3" onClick={() => setMenuOpen(false)} aria-label="Fermer le menu"><X size={18} /></button></div>
@@ -56,13 +57,13 @@ const Layout = ({ user, title, children, onLogout }: LayoutProps) => {
         <nav className="space-y-1">{menuItems.map((item) => <NavLink key={`${item.to}-${item.label}`} to={item.to} onClick={() => setMenuOpen(false)} className={({ isActive }) => `flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold transition ${isActive ? 'bg-brand-300/15 text-brand-300' : 'text-slate-300 hover:bg-brand-300/10 hover:text-brand-300'}`}><item.icon size={18} aria-hidden="true" />{item.label}</NavLink>)}</nav>
         <button className="mt-5 flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold text-red-200 hover:bg-red-400/10" onClick={onLogout}><LogOut size={18} />Déconnexion</button>
       </aside>
-      <header className="sticky top-0 z-30 border-b border-white/10 bg-[#071412]/85 backdrop-blur-xl">
+      <header className={`sticky top-0 z-30 border-b backdrop-blur-xl ${isSemesterView ? 'border-[#d9e1eb] bg-[#f5f8fc]/95' : 'border-white/10 bg-[#071412]/85'}`}>
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 lg:px-8">
           <button className="secondary-btn px-3" onClick={() => setMenuOpen(true)} aria-label="Ouvrir le menu"><Menu size={20} /></button>
           <Link to="/dashboard" className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-300 text-sm font-black text-[#06211b] shadow-lg shadow-brand-400/20">P</div>
             <div>
-              <div className="text-lg font-black tracking-tight text-emerald-50">PharmaCampus</div>
+              <div className={`text-lg font-black tracking-tight ${isSemesterView ? 'text-[#142438]' : 'text-emerald-50'}`}>PharmaCampus</div>
               <div className="hidden text-[10px] uppercase tracking-[0.22em] text-slate-500 sm:block">Apprendre • Réviser • Pratiquer</div>
             </div>
           </Link>
@@ -83,11 +84,11 @@ const Layout = ({ user, title, children, onLogout }: LayoutProps) => {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-4 py-6 pb-10 lg:px-8 lg:py-10">
+      <main className={`mx-auto max-w-7xl px-4 py-6 pb-10 lg:px-8 lg:py-10 ${isSemesterView ? 'academic-main' : ''}`}>
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="section-label">PharmaCampus / espace étudiant</p>
-            <h1 className="mt-2 text-3xl font-black tracking-tight text-emerald-50 sm:text-4xl">{title}</h1>
+            <h1 className={`mt-2 text-3xl font-black tracking-tight sm:text-4xl ${isSemesterView ? 'text-[#142438]' : 'text-emerald-50'}`}>{title}</h1>
           </div>
           <div className="flex flex-wrap gap-2">
             <Link to="/cours" className="secondary-btn">Cours S1-S10</Link>

@@ -130,6 +130,34 @@ select.input:disabled {
   padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
 }
 
+.academic-page {
+  min-height: 100vh;
+  background: #eef3f9;
+}
+
+.academic-page .secondary-btn {
+  border-color: #cbd5e1;
+  background: #ffffff;
+  color: #26384d;
+}
+
+.academic-page .secondary-btn:hover {
+  background: #f8fbff;
+  border-color: #77a8d2;
+}
+
+.academic-admin-button {
+  @apply inline-flex min-h-14 items-center gap-3 rounded-2xl px-5 py-3 text-left text-lg font-bold text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md;
+}
+
+.academic-admin-button--document { background: #b71916; }
+.academic-admin-button--image { background: #313bc5; }
+.academic-admin-button--url { background: #12569c; }
+
+@media (max-width: 767px) {
+  .academic-admin-button { @apply text-base; }
+}
+
 @media (max-width: 767px) {
   body { padding-bottom: 5.5rem; }
   .card { @apply rounded-xl; }

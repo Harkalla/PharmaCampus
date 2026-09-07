@@ -5,6 +5,7 @@ import { fetchSubjects } from '../lib/pharmaData';
 import { apiFetch } from '../lib/api';
 import { Course } from '../types';
 import { Subject, User } from '../types';
+import { BookOpen, FileImage, FileText, Link2 } from 'lucide-react';
 
 type SubjectsPageProps = { user: User; onLogout: () => void; };
 
@@ -72,31 +73,31 @@ const SubjectsPage = ({ user, onLogout }: SubjectsPageProps) => {
   return (
     <Layout user={user} title={`Semestre ${currentSemester}`} onLogout={onLogout}>
       {user.role === 'admin' && (
-        <div className="mb-8 rounded-[22px] border border-[#bfead2] bg-[#dff5eb] p-5 text-[#1b2f2a] shadow-sm">
-          <p className="text-lg font-extrabold text-[#1d2f2d]">Mode administrateur — ajoutez et gérez les ressources officielles.</p>
+        <div className="academic-admin-bar mb-8 rounded-[18px] border border-[#c7d7e8] bg-[#e7f0fa] p-5 text-[#142438] shadow-sm">
+          <p className="text-lg font-extrabold text-[#142438]">Mode administrateur — ajoutez et gérez les ressources officielles.</p>
           <div className="mt-4 grid gap-3 md:grid-cols-3">
-            <button type="button" onClick={() => openResourceModal('document')} className="rounded-xl bg-[#d94d5b] px-4 py-3 text-left text-lg font-bold text-white shadow-sm">Ajouter un document</button>
-            <button type="button" onClick={() => openResourceModal('image')} className="rounded-xl bg-[#7a4be6] px-4 py-3 text-left text-lg font-bold text-white shadow-sm">Ajouter une image</button>
-            <button type="button" onClick={() => openResourceModal('url')} className="rounded-xl bg-[#197ec3] px-4 py-3 text-left text-lg font-bold text-white shadow-sm">Ajouter une URL</button>
+            <button type="button" onClick={() => openResourceModal('document')} className="academic-admin-button academic-admin-button--document"><FileText size={20} />Ajouter un document</button>
+            <button type="button" onClick={() => openResourceModal('image')} className="academic-admin-button academic-admin-button--image"><FileImage size={20} />Ajouter une image</button>
+            <button type="button" onClick={() => openResourceModal('url')} className="academic-admin-button academic-admin-button--url"><Link2 size={20} />Ajouter une URL</button>
           </div>
         </div>
       )}
 
-      <div className="mb-6 text-[20px] font-bold text-[#1f2b32]">
+      <div className="mb-6 text-[19px] font-bold text-[#253449]">
         {subjects.length ? `Tous les niveaux > ${currentSemester}` : 'Chargement des modules...'}
       </div>
 
-      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+      <div className="academic-module-grid grid gap-5 md:grid-cols-2 xl:grid-cols-4">
         {subjects.map((subject) => {
           const documentCount = Number(subject.document_count || 0);
           const moduleId = subject.module_id || subject.id;
           return (
-            <Link key={subject.id} to={`/matiere/${moduleId}`} className="group flex min-h-[180px] flex-col justify-between rounded-[18px] border border-[#d3dbe2] bg-white/40 p-4 text-[#1d2530] shadow-sm transition hover:-translate-y-1 hover:border-[#6ec1a5] hover:shadow-md">
-              <div className="flex items-center justify-center">
-                <span className="inline-flex h-12 w-12 items-center justify-center rounded-lg border border-[#66b79a] bg-[#edfaf4] text-2xl text-[#1f9f72]">📘</span>
+            <Link key={subject.id} to={`/matiere/${moduleId}`} className="academic-module-card group flex min-h-[180px] flex-col justify-between rounded-[18px] border border-[#cbd5e1] bg-white p-4 text-[#142438] shadow-[0_3px_12px_rgba(65,84,110,0.08)] transition hover:-translate-y-1 hover:border-[#77a8d2] hover:shadow-[0_8px_18px_rgba(65,84,110,0.14)]">
+              <div className="flex items-center justify-start">
+                <span className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-[#9db4ca] bg-[#f3f7fb] text-[#18344d]"><BookOpen size={25} strokeWidth={1.8} /></span>
               </div>
-              <div className="mt-3 text-center text-[1.1rem] font-black leading-tight text-[#1c2430]">{subject.name}</div>
-              <div className="mt-3 space-y-1 text-center text-xs text-[#4c5966]"><div>📚 {subject.course_count || 0} cours</div><div>📄 {documentCount} document{documentCount > 1 ? 's' : ''}</div><div>❓ {subject.quiz_count || 0} QCM · 📝 {subject.exam_count || 0} examens</div><div>🔬 {subject.practical_count || 0} TP</div></div>
+              <div className="mt-3 text-left text-[1.08rem] font-black leading-tight text-[#142438]">{subject.name}</div>
+              <div className="mt-3 space-y-1 text-left text-xs text-[#526174]"><div>📚 {subject.course_count || 0} cours</div><div>📄 {documentCount} document{documentCount > 1 ? 's' : ''}</div><div>❓ {subject.quiz_count || 0} QCM · 📝 {subject.exam_count || 0} examens</div><div>🔬 {subject.practical_count || 0} TP</div></div>
             </Link>
           );
         })}
