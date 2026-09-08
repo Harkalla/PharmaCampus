@@ -1,13 +1,18 @@
 -- Correction Supabase pour la photo de profil.
--- Réutilise le bucket "pharmacampus-images" (déjà créé mais jusqu'ici inutilisé et sans policies).
 -- Idempotent : peut être rejoué sans risque.
 
--- 1) Rendre le bucket public pour que les photos de profil s'affichent directement
---    via une URL publique (getPublicUrl), comme pour les autres champs "photo_url"
---    déjà lisibles par tous (policy "Users can view profiles").
+-- 0) Créer le bucket s'il n'existe pas encore (au cas où le schema.sql d'origine
+--    n'a pas été exécuté jusqu'au bout, ou si "pharmacampus-images" a été supprimé).
+insert into storage.buckets (id, name, public)
+values ('pharmacampus-images', 'pharmacampus-images', true)
+on conflict (id) do nothing;
+
+-- 1) S'assurer qu'il est bien public, même s'il existait déjà en privé
+--    (pour affichage direct de la photo via getPublicUrl, comme les autres
+--    champs "photo_url" déjà lisibles par tous via la policy "Users can view profiles").
 update storage.buckets set public = true where id = 'pharmacampus-images';
 
--- 2) Lecture : tout le monde peut voir les photos de profil (cohérent avec la table profiles).
+-- 2) Lecture : tout le monde peut voir les photos de profil.
 drop policy if exists "Anyone can view profile photos" on storage.objects;
 create policy "Anyone can view profile photos" on storage.objects
 for select using (bucket_id = 'pharmacampus-images');
