@@ -276,6 +276,57 @@ create table if not exists public.suggestions (
   created_at timestamptz not null default now()
 );
 
+-- ============================================================
+-- Rattrapage complet des colonnes pour TOUTES les tables.
+-- Certaines de ces tables peuvent préexister avec une structure plus
+-- ancienne : "create table if not exists" plus haut ne les modifie pas,
+-- donc on ajoute explicitement chaque colonne manquante ici.
+-- ============================================================
+
+-- profiles
+alter table public.profiles add column if not exists email text;
+alter table public.profiles add column if not exists first_name text;
+alter table public.profiles add column if not exists last_name text;
+alter table public.profiles add column if not exists country text;
+alter table public.profiles add column if not exists city text;
+alter table public.profiles add column if not exists university text;
+alter table public.profiles add column if not exists level text;
+alter table public.profiles add column if not exists semester text;
+alter table public.profiles add column if not exists bio text;
+alter table public.profiles add column if not exists photo_url text;
+alter table public.profiles add column if not exists role text not null default 'user';
+alter table public.profiles add column if not exists created_at timestamptz not null default now();
+alter table public.profiles add column if not exists updated_at timestamptz not null default now();
+
+-- semesters
+alter table public.semesters add column if not exists name text;
+alter table public.semesters add column if not exists year integer not null default 1;
+alter table public.semesters add column if not exists sort_order integer not null default 1;
+alter table public.semesters add column if not exists created_at timestamptz not null default now();
+
+-- modules
+alter table public.modules add column if not exists code text;
+alter table public.modules add column if not exists semester_id text references public.semesters(id) on delete cascade;
+alter table public.modules add column if not exists name text;
+alter table public.modules add column if not exists description text;
+alter table public.modules add column if not exists sort_order integer not null default 1;
+alter table public.modules add column if not exists created_at timestamptz not null default now();
+
+-- subjects
+alter table public.subjects add column if not exists name text;
+alter table public.subjects add column if not exists semester text;
+alter table public.subjects add column if not exists description text;
+alter table public.subjects add column if not exists category text;
+alter table public.subjects add column if not exists module_id uuid references public.modules(id) on delete set null;
+alter table public.subjects add column if not exists semester_id text references public.semesters(id) on delete set null;
+alter table public.subjects add column if not exists created_at timestamptz not null default now();
+
+-- courses
+alter table public.courses add column if not exists title text;
+alter table public.courses add column if not exists description text;
+alter table public.courses add column if not exists subject_id uuid references public.subjects(id) on delete cascade;
+alter table public.courses add column if not exists semester text;
+alter table public.courses add column if not exists level text;
 alter table public.courses add column if not exists category text default 'Cours';
 alter table public.courses add column if not exists author text;
 alter table public.courses add column if not exists file_name text;
@@ -283,12 +334,181 @@ alter table public.courses add column if not exists file_path text;
 alter table public.courses add column if not exists file_url text;
 alter table public.courses add column if not exists file_size bigint;
 alter table public.courses add column if not exists status text not null default 'published';
+alter table public.courses add column if not exists created_at timestamptz not null default now();
+
+-- documents
+alter table public.documents add column if not exists title text;
+alter table public.documents add column if not exists description text;
+alter table public.documents add column if not exists subject_id uuid references public.subjects(id) on delete cascade;
+alter table public.documents add column if not exists semester text;
+alter table public.documents add column if not exists type text;
+alter table public.documents add column if not exists category text not null default 'Autre';
+alter table public.documents add column if not exists author text;
+alter table public.documents add column if not exists file_name text;
+alter table public.documents add column if not exists file_path text;
+alter table public.documents add column if not exists file_url text;
+alter table public.documents add column if not exists file_size bigint;
+alter table public.documents add column if not exists status text not null default 'published';
+alter table public.documents add column if not exists submitted_by uuid references public.profiles(id) on delete set null;
+alter table public.documents add column if not exists year integer;
+alter table public.documents add column if not exists tags text;
+alter table public.documents add column if not exists cover_image text;
+alter table public.documents add column if not exists reviewed_by uuid references public.profiles(id) on delete set null;
+alter table public.documents add column if not exists reviewed_at timestamptz;
+alter table public.documents add column if not exists rejection_reason text;
 alter table public.documents add column if not exists updated_at timestamptz not null default now();
-alter table public.modules add column if not exists code text;
+alter table public.documents add column if not exists created_at timestamptz not null default now();
+
+-- document_contributions
+alter table public.document_contributions add column if not exists user_id uuid references public.profiles(id) on delete cascade;
+alter table public.document_contributions add column if not exists title text;
+alter table public.document_contributions add column if not exists description text;
+alter table public.document_contributions add column if not exists subject_id uuid references public.subjects(id) on delete set null;
+alter table public.document_contributions add column if not exists semester_id text references public.semesters(id) on delete set null;
+alter table public.document_contributions add column if not exists semester text;
+alter table public.document_contributions add column if not exists category text not null default 'Autre';
+alter table public.document_contributions add column if not exists type text;
+alter table public.document_contributions add column if not exists year integer;
+alter table public.document_contributions add column if not exists file_name text;
+alter table public.document_contributions add column if not exists file_path text;
+alter table public.document_contributions add column if not exists file_size bigint;
+alter table public.document_contributions add column if not exists status text not null default 'pending';
+alter table public.document_contributions add column if not exists rejection_reason text;
+alter table public.document_contributions add column if not exists reviewed_by uuid references public.profiles(id) on delete set null;
+alter table public.document_contributions add column if not exists reviewed_at timestamptz;
+alter table public.document_contributions add column if not exists created_at timestamptz not null default now();
+
+-- exams
+alter table public.exams add column if not exists title text;
+alter table public.exams add column if not exists subject_id uuid references public.subjects(id) on delete cascade;
 alter table public.exams add column if not exists module_id uuid references public.modules(id) on delete set null;
 alter table public.exams add column if not exists semester_id text references public.semesters(id) on delete set null;
+alter table public.exams add column if not exists semester text;
+alter table public.exams add column if not exists year integer;
+alter table public.exams add column if not exists file_name text;
+alter table public.exams add column if not exists file_path text;
+alter table public.exams add column if not exists answer_file_name text;
+alter table public.exams add column if not exists answer_file_path text;
+alter table public.exams add column if not exists created_at timestamptz not null default now();
+
+-- corrections
+alter table public.corrections add column if not exists exam_id uuid references public.exams(id) on delete cascade;
+alter table public.corrections add column if not exists title text;
+alter table public.corrections add column if not exists file_name text;
+alter table public.corrections add column if not exists file_path text;
+alter table public.corrections add column if not exists created_at timestamptz not null default now();
+
+-- quizzes
+alter table public.quizzes add column if not exists title text;
+alter table public.quizzes add column if not exists subject_id uuid references public.subjects(id) on delete set null;
 alter table public.quizzes add column if not exists module_id uuid references public.modules(id) on delete set null;
 alter table public.quizzes add column if not exists semester_id text references public.semesters(id) on delete set null;
+alter table public.quizzes add column if not exists semester text;
+alter table public.quizzes add column if not exists created_at timestamptz not null default now();
+
+-- quiz_questions
+alter table public.quiz_questions add column if not exists quiz_id uuid references public.quizzes(id) on delete cascade;
+alter table public.quiz_questions add column if not exists question text;
+alter table public.quiz_questions add column if not exists options jsonb;
+alter table public.quiz_questions add column if not exists correct_answers jsonb;
+alter table public.quiz_questions add column if not exists explanation text;
+alter table public.quiz_questions add column if not exists created_at timestamptz not null default now();
+
+-- quiz_results
+alter table public.quiz_results add column if not exists user_id uuid references public.profiles(id) on delete cascade;
+alter table public.quiz_results add column if not exists quiz_id uuid references public.quizzes(id) on delete cascade;
+alter table public.quiz_results add column if not exists score integer not null default 0;
+alter table public.quiz_results add column if not exists total integer not null default 0;
+alter table public.quiz_results add column if not exists percentage numeric not null default 0;
+alter table public.quiz_results add column if not exists submitted_at timestamptz not null default now();
+
+-- medicines
+alter table public.medicines add column if not exists name text;
+alter table public.medicines add column if not exists dci text;
+alter table public.medicines add column if not exists therapeutic_class text;
+alter table public.medicines add column if not exists indications text;
+alter table public.medicines add column if not exists dosage text;
+alter table public.medicines add column if not exists contraindications text;
+alter table public.medicines add column if not exists adverse_effects text;
+alter table public.medicines add column if not exists precautions text;
+alter table public.medicines add column if not exists interactions text;
+alter table public.medicines add column if not exists forms text;
+alter table public.medicines add column if not exists image text;
+alter table public.medicines add column if not exists created_at timestamptz not null default now();
+
+-- practicals
+alter table public.practicals add column if not exists title text;
+alter table public.practicals add column if not exists module_id uuid references public.modules(id) on delete cascade;
+alter table public.practicals add column if not exists semester_id text references public.semesters(id) on delete cascade;
+alter table public.practicals add column if not exists objectives text;
+alter table public.practicals add column if not exists materials text;
+alter table public.practicals add column if not exists protocol text;
+alter table public.practicals add column if not exists expected_results text;
+alter table public.practicals add column if not exists report_instructions text;
+alter table public.practicals add column if not exists document_id uuid references public.documents(id) on delete set null;
+alter table public.practicals add column if not exists status text not null default 'published';
+alter table public.practicals add column if not exists created_by uuid references public.profiles(id) on delete set null;
+alter table public.practicals add column if not exists created_at timestamptz not null default now();
+alter table public.practicals add column if not exists updated_at timestamptz not null default now();
+
+-- revision_questions
+alter table public.revision_questions add column if not exists module_id uuid references public.modules(id) on delete cascade;
+alter table public.revision_questions add column if not exists semester_id text references public.semesters(id) on delete cascade;
+alter table public.revision_questions add column if not exists question text;
+alter table public.revision_questions add column if not exists answer text;
+alter table public.revision_questions add column if not exists explanation text;
+alter table public.revision_questions add column if not exists difficulty text default 'Moyenne';
+alter table public.revision_questions add column if not exists status text not null default 'published';
+alter table public.revision_questions add column if not exists created_by uuid references public.profiles(id) on delete set null;
+alter table public.revision_questions add column if not exists created_at timestamptz not null default now();
+
+-- user_progress
+alter table public.user_progress add column if not exists user_id uuid references public.profiles(id) on delete cascade;
+alter table public.user_progress add column if not exists module_id uuid references public.modules(id) on delete cascade;
+alter table public.user_progress add column if not exists resource_type text;
+alter table public.user_progress add column if not exists resource_id uuid;
+alter table public.user_progress add column if not exists viewed_at timestamptz not null default now();
+
+-- posts
+alter table public.posts add column if not exists user_id uuid references public.profiles(id) on delete cascade;
+alter table public.posts add column if not exists subject_id uuid references public.subjects(id) on delete set null;
+alter table public.posts add column if not exists category text;
+alter table public.posts add column if not exists title text;
+alter table public.posts add column if not exists content text;
+alter table public.posts add column if not exists created_at timestamptz not null default now();
+
+-- comments
+alter table public.comments add column if not exists post_id uuid references public.posts(id) on delete cascade;
+alter table public.comments add column if not exists user_id uuid references public.profiles(id) on delete cascade;
+alter table public.comments add column if not exists content text;
+alter table public.comments add column if not exists created_at timestamptz not null default now();
+
+-- messages
+alter table public.messages add column if not exists room text not null default 'direct';
+alter table public.messages add column if not exists user_id uuid references public.profiles(id) on delete cascade;
+alter table public.messages add column if not exists recipient_id uuid references public.profiles(id) on delete cascade;
+alter table public.messages add column if not exists content text;
+alter table public.messages add column if not exists created_at timestamptz not null default now();
+
+-- notifications
+alter table public.notifications add column if not exists user_id uuid references public.profiles(id) on delete cascade;
+alter table public.notifications add column if not exists title text;
+alter table public.notifications add column if not exists message text;
+alter table public.notifications add column if not exists link text;
+alter table public.notifications add column if not exists is_read boolean not null default false;
+alter table public.notifications add column if not exists created_at timestamptz not null default now();
+
+-- reports
+alter table public.reports add column if not exists user_id uuid references public.profiles(id) on delete set null;
+alter table public.reports add column if not exists type text;
+alter table public.reports add column if not exists description text;
+alter table public.reports add column if not exists created_at timestamptz not null default now();
+
+-- suggestions
+alter table public.suggestions add column if not exists user_id uuid references public.profiles(id) on delete set null;
+alter table public.suggestions add column if not exists title text;
+alter table public.suggestions add column if not exists description text;
+alter table public.suggestions add column if not exists created_at timestamptz not null default now();
 
 -- Compatibility migration for an earlier schema that used text module_id values.
 -- Legacy values are preserved instead of being deleted; new relations use UUIDs.
