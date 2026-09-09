@@ -12,6 +12,7 @@ const app = express();
 const PORT = process.env.PORT || 4000;
 const JWT_SECRET = process.env.JWT_SECRET || 'pharmacampus-secret-key';
 const uploadDir = path.join(__dirname, '..', 'uploads');
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
 initializeDatabase();
 app.use(cors());
@@ -27,7 +28,10 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 const profileUpload = multer({ storage, limits: { fileSize: 2 * 1024 * 1024 }, fileFilter: (req, file, cb) => {
-  cb(null, ['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype));
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.mimetype)) {
+    return cb(new Error('Format de photo non supporté (JPEG, PNG ou WEBP uniquement).'));
+  }
+  cb(null, true);
 } });
 
 function signToken(user) {
@@ -560,6 +564,21 @@ app.get('/api/admin/reports', authMiddleware, adminMiddleware, (req, res) => {
 app.get('/api/admin/suggestions', authMiddleware, adminMiddleware, (req, res) => {
   const rows = db.prepare('SELECT * FROM suggestions ORDER BY created_at DESC').all();
   res.json({ suggestions: rows });
+});
+
+// Gestion des erreurs Multer (fichier trop volumineux, type invalide, etc.)
+app.use((err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ error: 'Le fichier dépasse la taille maximale autorisée (2 Mo pour une photo de profil).' });
+    }
+    return res.status(400).json({ error: 'Fichier invalide : ' + err.message });
+  }
+  if (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Erreur serveur : ' + (err.message || 'une erreur inattendue est survenue.') });
+  }
+  next();
 });
 
 app.listen(PORT, () => {
