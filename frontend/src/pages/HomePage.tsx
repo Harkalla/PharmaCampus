@@ -60,7 +60,7 @@ const Icon = {
 };
 
 const features = [
-  { title: 'Cours', description: 'Accédez à des contenus de qualité par matière et par semestre.', link: '/dashboard', icon: Icon.cours },
+  { title: 'Cours', description: 'Accédez à des contenus de qualité par matière et par semestre.', link: '/cours', icon: Icon.cours },
   { title: 'Révisions', description: 'Téléchargez et consolidez les supports de cours et fiches.', link: '/documents', icon: Icon.revisions },
   { title: 'QCM', description: 'Testez vos connaissances avec des quiz et des corrections.', link: '/qcm', icon: Icon.qcm },
   { title: 'Examens', description: 'Consultez les anciens examens et les corrigés associés.', link: '/examens', icon: Icon.examens },
@@ -71,7 +71,7 @@ const features = [
 
 const tabs = [
   { label: 'Accueil', link: '/' },
-  { label: 'Cours', link: '/dashboard' },
+  { label: 'Cours', link: '/cours' },
   { label: 'Réviser', link: '/qcm' },
   { label: 'Communauté', link: '/entraide' },
   { label: 'Profil', link: '/profile' },
