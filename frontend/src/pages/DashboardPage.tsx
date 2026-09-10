@@ -4,7 +4,7 @@ import { apiFetch, formatDate } from '../lib/api';
 import { supabase } from '../lib/supabase';
 import { useEffect, useState } from 'react';
 import { User } from '../types';
-import { UserRound } from 'lucide-react';
+import { UserRound, BookOpen, Brain, FileText, ClipboardList, FlaskConical, Pill, Users, Send, FileCheck2, Lightbulb, ChevronRight } from 'lucide-react';
 
 type DashboardProps = { user: User; onLogout: () => void; };
 
@@ -79,23 +79,28 @@ const DashboardPage = ({ user, onLogout }: DashboardProps) => {
             </div>
           </section>
 
-          <section className="card p-6 sm:p-7">
-            <div className="mb-5 flex items-end justify-between gap-4">
-              <div><p className="section-label">À portée de main</p><h3 className="mt-2 text-2xl font-black text-emerald-50">Accès rapides</h3></div>
-              <span className="hidden text-xs text-slate-500 sm:block">Tes outils essentiels</span>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <section className="quick-access-panel">
+            <h3 className="mb-4 text-lg font-bold text-[#142438]">Accès rapide</h3>
+            <div className="grid gap-3 sm:grid-cols-2">
               {[
-                ['Mes cours', '/niveaux/S5', '▤', 'Cours par semestre'],
-                ['Réviser avec moi', '/documents', '◒', 'Fiches et documents'],
-                ['QCM', '/qcm', '✓', 'Teste tes acquis'],
-                ['Examens', '/examens', '⌁', 'Sujets et corrigés'],
-                ['Médicaments', '/medicaments', '✚', 'Base thérapeutique'],
-                ['Travaux pratiques', '/dashboard', '⚗', 'Méthodologie'],
-                ['Communauté', '/entraide', '♧', 'Échanger ensemble']
-              ].map(([label, path, icon, description]) => (
-                <Link key={label} to={path} className="group rounded-2xl border border-white/10 bg-black/10 p-4 transition duration-200 hover:-translate-y-0.5 hover:border-brand-300/40 hover:bg-brand-300/[0.08]">
-                  <div className="flex items-start gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-300/10 text-lg text-brand-300 transition group-hover:bg-brand-300 group-hover:text-[#06211b]">{icon}</span><span><span className="block font-bold text-emerald-50">{label}</span><span className="mt-1 block text-xs leading-5 text-slate-500">{description}</span></span></div>
+                { label: 'Mes cours', desc: 'Cours et ressources pédagogiques.', to: '/niveaux/S5', icon: BookOpen, tint: 'mint' },
+                { label: 'Réviser avec moi', desc: 'Quiz générés et révision.', to: '/documents', icon: Brain, tint: 'amber' },
+                { label: 'Examens', desc: 'Examens et anciens sujets.', to: '/examens', icon: FileText, tint: 'rose' },
+                { label: 'QCM', desc: 'QCM interactifs par module.', to: '/qcm', icon: ClipboardList, tint: 'amber' },
+                { label: 'Travaux pratiques', desc: 'TP et travaux pratiques.', to: '/dashboard', icon: FlaskConical, tint: 'sky' },
+                { label: 'Médicaments', desc: 'Base de données des médicaments.', to: '/medicaments', icon: Pill, tint: 'violet' },
+                { label: 'Communauté', desc: 'Échangez avec les autres étudiants.', to: '/entraide', icon: Users, tint: 'sky' },
+                { label: 'Envoyer un document', desc: 'Contribuez en envoyant un document.', to: '/contributions', icon: Send, tint: 'mint' },
+                { label: 'Mes documents envoyés', desc: 'Suivez le statut de vos contributions.', to: '/contributions', icon: FileCheck2, tint: 'mint' },
+                { label: 'Remarques et suggestions', desc: 'Partagez vos remarques et idées.', to: '/remarques', icon: Lightbulb, tint: 'violet' }
+              ].map(({ label, desc, to, icon: Icon, tint }) => (
+                <Link key={label} to={to} className="quick-access-card">
+                  <span className={`quick-access-icon quick-access-icon--${tint}`}><Icon size={20} aria-hidden="true" /></span>
+                  <span className="quick-access-text">
+                    <span className="quick-access-title">{label}</span>
+                    <span className="quick-access-desc">{desc}</span>
+                  </span>
+                  <ChevronRight size={18} className="quick-access-chevron" aria-hidden="true" />
                 </Link>
               ))}
             </div>

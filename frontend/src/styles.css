@@ -158,6 +158,42 @@ select.input:disabled {
   .academic-admin-button { @apply text-base; }
 }
 
+/* Accès rapide — carte claire et professionnelle, toujours en thème clair
+   quel que soit le mode (clair/sombre) choisi ailleurs dans l'app. */
+.quick-access-panel {
+  @apply rounded-2xl border border-[#e6eaf0] bg-white p-5 shadow-soft sm:p-6;
+}
+
+.quick-access-card {
+  @apply flex items-center gap-3 rounded-xl border border-[#e6eaf0] bg-white p-4 transition duration-150 hover:-translate-y-0.5 hover:border-brand-400/40 hover:shadow-soft;
+}
+
+.quick-access-icon {
+  @apply flex h-11 w-11 shrink-0 items-center justify-center rounded-xl;
+}
+
+.quick-access-icon--mint { @apply bg-emerald-50 text-emerald-600; }
+.quick-access-icon--amber { @apply bg-amber-50 text-amber-600; }
+.quick-access-icon--rose { @apply bg-rose-50 text-rose-600; }
+.quick-access-icon--sky { @apply bg-sky-50 text-sky-600; }
+.quick-access-icon--violet { @apply bg-violet-50 text-violet-600; }
+
+.quick-access-text {
+  @apply flex min-w-0 flex-1 flex-col;
+}
+
+.quick-access-title {
+  @apply text-sm font-bold text-[#142438];
+}
+
+.quick-access-desc {
+  @apply mt-0.5 truncate text-xs text-[#6b7a8d];
+}
+
+.quick-access-chevron {
+  @apply shrink-0 text-[#b7c1cf] transition group-hover:text-brand-500;
+}
+
 @media (max-width: 767px) {
   body { padding-bottom: 5.5rem; }
   .card { @apply rounded-xl; }
