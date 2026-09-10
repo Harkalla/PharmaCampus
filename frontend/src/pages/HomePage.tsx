@@ -98,20 +98,12 @@ const HomePage = ({ user, onLogout }: HomePageProps) => {
 
           <div className="flex items-center gap-3">
             {user ? (
-              <>
-                <Link
-                  to="/dashboard"
-                  className="hidden rounded-md border border-[#1B2A4A]/15 px-4 py-2 text-sm font-semibold text-[#1B2A4A] hover:bg-[#F1F3F6] sm:inline-block"
-                >
-                  Mon tableau de bord
-                </Link>
-                <button
-                  onClick={onLogout}
-                  className="rounded-md bg-[#B3123A] px-4 py-2 text-sm font-semibold text-white hover:bg-[#941030]"
-                >
-                  Déconnexion
-                </button>
-              </>
+              <button
+                onClick={onLogout}
+                className="rounded-md bg-[#B3123A] px-4 py-2 text-sm font-semibold text-white hover:bg-[#941030]"
+              >
+                Déconnexion
+              </button>
             ) : (
               <>
                 <Link
@@ -143,8 +135,8 @@ const HomePage = ({ user, onLogout }: HomePageProps) => {
               </p>
               <div className="mt-6 flex flex-wrap gap-3">
                 {user ? (
-                  <Link to="/dashboard" className="rounded-md bg-[#B3123A] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#941030]">
-                    Mon tableau de bord
+                  <Link to="/cours" className="rounded-md bg-[#B3123A] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#941030]">
+                    Voir mes cours
                   </Link>
                 ) : (
                   <>
