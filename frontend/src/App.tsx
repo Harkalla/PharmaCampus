@@ -74,7 +74,7 @@ const App = () => {
       localStorage.setItem('pharmacampus_token', token);
     }
     setUser(currentUser);
-    navigate(currentUser.role === 'admin' ? '/admin' : '/dashboard', { replace: true });
+    navigate(currentUser.role === 'admin' ? '/admin' : '/', { replace: true });
   };
 
   const handleLogout = async () => {
@@ -88,8 +88,8 @@ const App = () => {
   return (
     <Routes>
       <Route path="/" element={<HomePage user={user} onLogout={handleLogout} />} />
-      <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <LoginPage onLogin={handleLogin} />} />
-      <Route path="/register" element={user ? <Navigate to="/dashboard" replace /> : <RegisterPage onLogin={handleLogin} />} />
+      <Route path="/login" element={user ? <Navigate to="/" replace /> : <LoginPage onLogin={handleLogin} />} />
+      <Route path="/register" element={user ? <Navigate to="/" replace /> : <RegisterPage onLogin={handleLogin} />} />
       <Route path="/dashboard" element={user ? <DashboardPage user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
       <Route path="/cours" element={user ? <CoursesPage user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
       <Route path="/niveaux/:semester" element={user ? <SubjectsPage user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
@@ -105,7 +105,7 @@ const App = () => {
       <Route path="/messages" element={user ? <MessagesPage user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
       <Route path="/profil" element={user ? <ProfilePage user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
       <Route path="/recherche" element={user ? <SearchPage user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
-      <Route path="/admin" element={user?.role === 'admin' ? <AdminPage user={user} onLogout={handleLogout} /> : <Navigate to={user ? '/dashboard' : '/login'} replace />} />
+      <Route path="/admin" element={user?.role === 'admin' ? <AdminPage user={user} onLogout={handleLogout} /> : <Navigate to={user ? '/' : '/login'} replace />} />
       <Route path="/settings" element={user ? <SettingsPage user={user} onLogout={handleLogout} /> : <Navigate to="/login" replace />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

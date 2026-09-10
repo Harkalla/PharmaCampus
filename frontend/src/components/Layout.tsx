@@ -12,7 +12,7 @@ type LayoutProps = {
 };
 
 const navItems = [
-  { to: '/dashboard', label: 'Accueil', icon: '⌂' },
+  { to: '/', label: 'Accueil', icon: '⌂' },
   { to: '/cours', label: 'Cours', icon: '▤' },
   { to: '/documents', label: 'Réviser', icon: '◒' },
   { to: '/entraide', label: 'Communauté', icon: '♧' },
@@ -39,7 +39,7 @@ const Layout = ({ user, title, children, onLogout }: LayoutProps) => {
   const menuItems = user.role === 'admin'
     ? [{ to: '/admin', label: 'Dashboard', icon: ShieldCheck }, { to: '/admin', label: 'Contributions à examiner', icon: FileText }, { to: '/notifications', label: 'Notifications', icon: Bell }, { to: '/settings', label: 'Paramètres administrateur', icon: Settings }]
     : [
-      { to: '/dashboard', label: 'Accueil', icon: Home },
+      { to: '/', label: 'Accueil', icon: Home },
       { to: '/profil', label: 'Mon profil', icon: UserRound },
       { to: '/entraide', label: 'Communauté', icon: Users },
       { to: '/cours', label: 'Mes cours', icon: BookOpen },
@@ -60,7 +60,7 @@ const Layout = ({ user, title, children, onLogout }: LayoutProps) => {
       <header className={`sticky top-0 z-30 border-b backdrop-blur-xl ${isSemesterView ? 'border-[#d9e1eb] bg-[#f5f8fc]/95' : 'border-white/10 bg-[#071412]/85'}`}>
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3 lg:px-8">
           <button className="secondary-btn px-3" onClick={() => setMenuOpen(true)} aria-label="Ouvrir le menu"><Menu size={20} /></button>
-          <Link to="/dashboard" className="flex items-center gap-3">
+          <Link to="/" className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-300 text-sm font-black text-[#06211b] shadow-lg shadow-brand-400/20">P</div>
             <div>
               <div className={`text-lg font-black tracking-tight ${isSemesterView ? 'text-[#142438]' : 'text-emerald-50'}`}>PharmaCampus</div>
